@@ -219,7 +219,7 @@ class Molecule:
 
     def center_of_mass(self):
         if len(self.comp) != self.atoms:
-            return "Error: molecule not fully read." 
+            raise Exception("Error: molecule not fully read." )
 
         com = np.zeros(3)
 
@@ -235,45 +235,45 @@ class Molecule:
 
     def shift(self, x, y, z):
         m = self.atoms // 2
-        mid = Vector(self.comp[m].x, self.comp[m].y, self.comp[m].z )
+        mid = Vector(self.comp[m].position[0], self.comp[m].position[1], self.comp[m].position[2] )
         for i in range(self.atoms):     
-            self.comp[i].x -= mid.x - x
-            self.comp[i].y -= mid.y - y
-            self.comp[i].z -= mid.z - z
+            self.comp[i].position[0] -= mid.x - x
+            self.comp[i].position[1] -= mid.y - y
+            self.comp[i].position[2] -= mid.z - z
 
 
     def rotate_x(self, theta):
         # change degrees to radians
         theta *= ( np.pi / 180 )
         for i in range(self.atoms):
-            temp_y = self.comp[i].y
-            temp_z = self.comp[i].z
+            temp_y = self.comp[i].position[1]
+            temp_z = self.comp[i].position[2]
             
             # self.comp[i].x = self.comp[i].x 
-            self.comp[i].y = temp_y * np.cos(theta) - temp_z * np.sin(theta)
-            self.comp[i].z = temp_y * np.sin(theta) + temp_z * np.cos(theta)
+            self.comp[i].position[1] = temp_y * np.cos(theta) - temp_z * np.sin(theta)
+            self.comp[i].position[2] = temp_y * np.sin(theta) + temp_z * np.cos(theta)
 
 
     def rotate_y(self, theta):
         # change degrees to radians
         theta *= ( np.pi / 180 )
         for i in range(self.atoms):
-            temp_x = self.comp[i].x
-            temp_z = self.comp[i].z
+            temp_x = self.comp[i].position[0]
+            temp_z = self.comp[i].position[2]
 
-            self.comp[i].x = temp_x * np.cos(theta) + temp_z * np.sin(theta)
+            self.comp[i].position[0] = temp_x * np.cos(theta) + temp_z * np.sin(theta)
             # self.comp[i].y = self.comp[i].y 
-            self.comp[i].z = -1 * temp_x * np.sin(theta) + temp_z * np.cos(theta)
+            self.comp[i].position[2] = -1 * temp_x * np.sin(theta) + temp_z * np.cos(theta)
 
     def rotate_z(self, phi):        
         # change degrees to radians
         phi *= ( np.pi / 180 )
         for i in range(self.atoms):
-            temp_x = self.comp[i].x
-            temp_y = self.comp[i].y
+            temp_x = self.comp[i].position[0]
+            temp_y = self.comp[i].position[1]
             
-            self.comp[i].x = temp_x * np.cos(phi) - temp_y * np.sin(phi)
-            self.comp[i].y = temp_x * np.sin(phi) + temp_y * np.cos(phi)
+            self.comp[i].position[0] = temp_x * np.cos(phi) - temp_y * np.sin(phi)
+            self.comp[i].position[1] = temp_x * np.sin(phi) + temp_y * np.cos(phi)
             # self.comp[i].z = self.comp[i].z 
 
 
@@ -372,6 +372,9 @@ class DirectorPixel(Pixel):
         eigenvalue, eigenvector = scipy.sparse.linalg.eigsh(self.Q(), k=1, which="LM")
         eigenvector = np.reshape(eigenvector, -1)
 
+        if eigenvector[-1] < 0:
+            eigenvector *= -1
+
         return eigenvector
 
 
@@ -392,7 +395,8 @@ class DirectorPixel(Pixel):
         return p2value
     
     def colour(self):
-        return self.P2Value()
+        # return self.P2Value()
+        return self.local_director()[1]
     
 
 class Screen:
@@ -411,6 +415,7 @@ class Screen:
         return rows
 
     def determine_pixel(self, atom: Atom, box: Simulation_box, plane='xz') -> tuple[int, int]:
+        # prepare data from proper directions for further processing 
         match plane:
             case "xz":
                 box1 = box.x
@@ -429,11 +434,19 @@ class Screen:
                 atom_position1 = atom.position[1]
                 atom_position2 = atom.position[2]
     
+        # determine size of single pixel in the same units as box' length
         self._bin_size_1 = box1 / self.x
         self._bin_size_2 = box2 / self.y
         
+        # compute which pixel corresponds to molecules position
         bin1 = int(atom_position1 // self._bin_size_1)
         bin2 = int(atom_position2 // self._bin_size_2)
+
+        # handle exceptions (molecule center does not have to be inside box even when middle atom is inside)
+        if bin1 >= self.x: bin1 = self.x - 1
+        if bin2 >= self.y: bin2 = self.y - 1
+        if bin1 < 0: bin1 = 0
+        if bin2 < 0: bin2 = 0
 
         return bin1, bin2
 
@@ -485,6 +498,66 @@ class Screenshot(Screen):
         self.screen = self.screen[pixels_to_scroll:] + self.screen[:pixels_to_scroll]
 
 
+class HorizontalSlice(Screen):
+    # initializing Slice as a single pixel of type matching current screen
+    def __init__(self, screen: Screen, row):
+        self.component = type(screen.screen[0][0])()
+        self.row = row
+
+    def read_slice(self, screen, start, end):
+        for i in range(start, end):
+            self.component.merge_pixels(screen.screen[self.row][i])
+        
+    def slice_director(self):
+        if not isinstance(self.slice, DirectorPixel):
+            raise Exception("Pixel has to be Director Pixel")
+
+        return self.component.local_director()
+
+
+class VerticalSlice(Screen):
+    # initializing Slice as a single pixel of type matching current screen
+    def __init__(self, screen: Screen, row):
+        self.component = type(screen.screen[0][0])()
+        self.row = row
+
+    def read_slice(self, screen, start, end):
+        for i in range(start, end):
+            self.component.merge_pixels(screen.screen[i][self.row])
+        
+    def slice_director(self):
+        if not isinstance(self.slice, DirectorPixel):
+            raise Exception("Pixel has to be Director Pixel")
+
+        return self.component.local_director()
+
+
+class SmecticParameter():
+    def __init__(self, periods) -> None:
+        self.parameter = 0 + 0j
+        self.count = 0
+        self.periods = 4
+
+    def __repr__(self) -> str:
+       return f"{np.abs(self.parameter):.3f} | {self.count}"
+
+    # only for vertical slices in y-z plane!
+    def add_atom(self, center, box: Simulation_box):
+        self.parameter += np.exp(self.periods * 2*np.pi*1j * center[-1] / box.z)
+        self.count += 1
+        # print(np.exp(2*np.pi*1j * center[-1] / box.z))
+
+    def normalize(self):
+        if self.count != 0:
+            self.parameter /= self.count
+    
+    def read_screen(self, screen: Screen, start, end, box: Simulation_box):
+        for x in range(start, end):
+            for y in range(screen.y):
+                # for coords in screen.screen[y][x].components:
+                #     self.add_atom(coords, box)
+                self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
+                self.count += screen.screen[y][x].colour()
 
 def wrap_atom_to_box(atom: Atom, box: Simulation_box) -> Atom:
     atom.position[0] = atom.position[0] % box.x
