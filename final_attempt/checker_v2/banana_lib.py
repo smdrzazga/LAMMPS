@@ -230,7 +230,7 @@ class Molecule:
 
 
     def polarization(self):
-        return self.comp[self.atoms//2].position - (self.comp[-1].position - self.comp[0].position) / 2
+        return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
 
 
     def shift(self, x, y, z):
@@ -569,7 +569,7 @@ class SmecticParameter():
     def __init__(self, periods) -> None:
         self.parameter = 0 + 0j
         self.count = 0
-        self.periods = 4
+        self.periods = periods
 
     def __repr__(self) -> str:
        return f"{np.abs(self.parameter):.3f} | {self.count}"
@@ -584,13 +584,18 @@ class SmecticParameter():
         if self.count != 0:
             self.parameter /= self.count
     
-    def read_screen(self, screen: Screen, start, end, box: Simulation_box):
+    def read_screen(self, screen: Screen, start, end):
+        HARD_CODED_LIMIT = 0
+        # HARD_CODED_LIMIT = int((self.periods % 1.0) * screen.y / self.periods)
+        # print(HARD_CODED_LIMIT, screen.y)
+
         for x in range(start, end):
-            for y in range(screen.y):
+            for y in range(HARD_CODED_LIMIT, screen.y):
                 # for coords in screen.screen[y][x].components:
                 #     self.add_atom(coords, box)
                 self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
                 self.count += screen.screen[y][x].colour()
+                print({self})
 
 def wrap_atom_to_box(atom: Atom, box: Simulation_box) -> Atom:
     atom.position[0] = atom.position[0] % box.x
