@@ -168,7 +168,7 @@ def scale(target_volume, current_volume, num_walls):
 
 
 class Atom:
-    def __init__(self, id, type, x, y, z):
+    def __init__(self, id, x, y, z, type="A"):
         self.id = int(id)
         self.type = type
         self.position = np.array([float(x), float(y), float(z)])
@@ -212,6 +212,7 @@ class Molecule:
         self.id = id   
         self.comp = []
         self.atoms = num_atoms
+        self._angle = 130
 
     def center(self):
         return self.comp[self.atoms//2]
@@ -230,7 +231,12 @@ class Molecule:
 
 
     def polarization(self):
-        return self.comp[self.atoms//2].position - (self.comp[-1].position - self.comp[0].position) / 2
+        return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
+    
+
+    def length(self):
+        R = self.atoms * 360 / (180 - self._angle) / (2*np.pi)
+        return 9.68
 
 
     def shift(self, x, y, z):
@@ -466,6 +472,28 @@ class Screen:
                 colour[i, j] = self.screen[i][j].colour()
 
         return colour
+    
+    def normalized_colour(self):
+        colour = np.zeros((self.x, self.y))
+
+        # create colour matrix
+        for i in range(self.y):
+            for j in range(self.x):
+                colour[i, j] = self.screen[i][j].colour()
+
+        # calculate norm
+        norm = 0
+        for i in range(self.y):
+            for j in range(self.x):
+                norm += colour[i, j]
+
+        norm /= self.x * self.y
+        # normalize matrix to get density profile
+        for i in range(self.y):
+            for j in range(self.x):
+                colour[i, j] /= norm
+
+        return colour
 
     def avg_director(self):
         if not isinstance(self.screen[0][0], DirectorPixel):
@@ -493,9 +521,42 @@ class Screenshot(Screen):
         return int(pixel_num * drift / box.z)
     
     
-    def scroll(self, pixels_to_scroll: int) -> None:
+    def scroll(self, pixels_to_scroll: int, side="both") -> None:
         # scrolling as slicing screenshot into two pieces and changing their order 
-        self.screen = self.screen[pixels_to_scroll:] + self.screen[:pixels_to_scroll]
+        if side == 'r':
+            middle = self.x//2
+
+            # split screenshot into left and right halfs
+            L, R = [], []
+            for i in range(self.x):
+                L.append(self.screen[i][:middle])
+                R.append(self.screen[i][middle:])
+            
+            # scroll right-hand-side of the screenshot
+            R = R[pixels_to_scroll:] + R[:pixels_to_scroll]
+
+            for i in range(self.x):
+                self.screen[i] = L[i] + R[i]
+
+        elif side == 'l':
+            middle = self.x//2
+
+            # split screenshot into left and right halfs
+            L, R = [], []
+            for i in range(self.x):
+                L.append(self.screen[i][:middle])
+                R.append(self.screen[i][middle:])
+            
+            # scroll left-hand-side of the screenshot
+            L = L[pixels_to_scroll:] + L[:pixels_to_scroll]
+
+            for i in range(self.x):
+                self.screen[i] = L[i] + R[i]
+
+        elif side == "both":
+            self.screen = self.screen[pixels_to_scroll:] + self.screen[:pixels_to_scroll]
+        else:
+            raise Exception(f"Side can be 'l' or 'r' or 'both'!")
 
 
 class HorizontalSlice(Screen):
@@ -536,7 +597,7 @@ class SmecticParameter():
     def __init__(self, periods) -> None:
         self.parameter = 0 + 0j
         self.count = 0
-        self.periods = 4
+        self.periods = periods
 
     def __repr__(self) -> str:
        return f"{np.abs(self.parameter):.3f} | {self.count}"
@@ -551,13 +612,20 @@ class SmecticParameter():
         if self.count != 0:
             self.parameter /= self.count
     
-    def read_screen(self, screen: Screen, start, end, box: Simulation_box):
+    def read_screen(self, screen: Screen, start, end):
+        HARD_CODED_LIMIT = 0
+        # HARD_CODED_LIMIT = int((self.periods % 1.0) * screen.y / self.periods)
+        # print(HARD_CODED_LIMIT, screen.y)
+
         for x in range(start, end):
-            for y in range(screen.y):
+        # for x in range(start, start+1):
+            for y in range(HARD_CODED_LIMIT, screen.y):
                 # for coords in screen.screen[y][x].components:
                 #     self.add_atom(coords, box)
                 self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
                 self.count += screen.screen[y][x].colour()
+                # print(self)
+
 
 def wrap_atom_to_box(atom: Atom, box: Simulation_box) -> Atom:
     atom.position[0] = atom.position[0] % box.x
