@@ -412,13 +412,13 @@ class Screen:
         self.screen = [[pixel_class() for j in range(x)] for i in range(y)]
 
     def __repr__(self) -> str:
-        rows = str()
+        z = 0.5
+        name = ""
         for i in range(self.y):
             for j in range(self.x):
-                cell = f"{len(self.screen[i][j].components)} "
-                rows = rows + cell
-            rows = rows + "\n"
-        return rows
+                pix = f"{z} {i/self.y:.5f} {j/self.x:.5f} {self.screen[i][j].colour():.5f}\n"
+                name += pix
+        return name
 
     def determine_pixel(self, atom: Atom, box: Simulation_box, plane='xz') -> tuple[int, int]:
         # prepare data from proper directions for further processing 

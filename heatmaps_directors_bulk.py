@@ -6,6 +6,8 @@ from multiprocessing.pool import Pool
 import mmap
 import time
 
+
+
 # locations = [
 #     # "E:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
@@ -19,13 +21,6 @@ import time
 #     "E:/LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj"
-# ]
-
-# locations = [
-#     "G:/lammps dane/12k/all_snapshots_0.32.lammpstrj",
-#     "G:/lammps dane/12k/all_snapshots_0.314.lammpstrj",
-#     "G:/lammps dane/12k/all_snapshots_0.308.lammpstrj",
-#     "G:/lammps dane/12k/all_snapshots_0.31.lammpstrj"
 # ]
 
 locations = [
@@ -173,16 +168,27 @@ def create_scatter(screen, location):
 if __name__ == '__main__':
 
     for location in locations:
+        density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
+        mode = location.split('/')[-2]
+        screen_file = "C:/Users/komok/Desktop/directors_screen_bulk_" + mode + '_' + density + ".txt"
+
         screen = sz.Screen(x, z, sz.DirectorPixel)
-        n = 60
+        n = 6
         t1 = time.time()
         with Pool(NP) as executor:
             for result in executor.starmap(analyze_batch, zip([i for i in range(n)], [location]*n)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(n)]):
                 screen.append_screenshot(result)
 
+        with open(screen_file, "w") as t:
+            print("", end='', file=t)
+
+        with open(screen_file, "a") as t:
+            print(screen, file=t)
+
         t2 = time.time()
         print(f"Time elapsed: {t2 - t1}")
-        print("Here comes the heatmap!")
-        create_scatter(screen, location)
-        print("Bye bye, heatmap!")
+
+        # print("Here comes the heatmap!")
+        # create_scatter(screen, location)
+        # print("Bye bye, heatmap!")

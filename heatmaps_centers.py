@@ -6,34 +6,29 @@ from multiprocessing.pool import Pool
 import mmap
 import time
 
-
-# locations = [
-#     # "E:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
+locations = [
 #     "E:/LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
 #     "E:/LAMMPS_data/6k/all_snapshots_0.316.lammpstrj",
 #     # "E:/LAMMPS_data/6k/all_snapshots_0.315.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.314.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.312.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.31.lammpstrj",
-#     "E:/LAMMPS_data/6k/all_snapshots_0.308.lammpstrj",
-#     # "E:/LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
 #     "E:/LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
-#     "E:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj"
-# ]
-locations = ["E:/LAMMPS_data/phase_transitions/0.35/all_snapshots_0.35.lammpstrj"]
+#     "E:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.308.lammpstrj",
+    "E:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj"
+]
+# locations = ["E:/LAMMPS_data/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
 # locations = [
-#     "E:/LAMMPS_data/double_x/z_tester/43/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_x/z_tester/44/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_x/z_tester/45/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_x/z_tester/47/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_x/z_tester/48/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_x/z_tester/46/all_snapshots_0.32.lammpstrj"
+#     "E:/LAMMPS_data/double_z/all_snapshots_0.32.lammpstrj",
+#     "E:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj"
 # ]
 
 
 NP = 6
-SIZE = mmap.ALLOCATIONGRANULARITY * 2000
+SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 # input bin size and side of simulation box
 x = 150
 z = 150
@@ -135,9 +130,9 @@ def create_heatmap(screen: sz.Screen, location):
     # plotting
     plt.figure()
     if plane == "yz":
-        plt.imshow(screen.colour()[:, 4:-4], interpolation="bilinear", clim = colorbar_limits, extent=(0, box.y/sz.Molecule(1, 11).length(), 0, box.z/sz.Molecule(1, 11).length()), aspect="auto")
+        plt.imshow(screen.normalized_colour()[:, 4:-4], interpolation="bicubic", clim = colorbar_limits, extent=(0, box.y/sz.Molecule(1, 11).length(), 0, box.z/sz.Molecule(1, 11).length()), aspect="auto")
     elif plane == "xz":
-        plt.imshow(screen.colour()[:, 4:-4], interpolation="bilinear", clim = colorbar_limits, extent=(0, box.x/sz.Molecule(1, 11).length(), 0, box.z/sz.Molecule(1, 11).length()), aspect="auto")        
+        plt.imshow(screen.normalized_colour()[:, 4:-4], interpolation="bicubic", clim = colorbar_limits, extent=(0, box.x/sz.Molecule(1, 11).length(), 0, box.z/sz.Molecule(1, 11).length()), aspect="auto")        
     # if iter == 0:
     plt.colorbar()
 
@@ -150,13 +145,13 @@ def create_heatmap(screen: sz.Screen, location):
         zeros += "0"
     density = density[0] + "." + density[1] + zeros
     step = location.split('_')[-1].split('.')[0]
-    plt.title(f"centers, density={density}")
+    id = location.strip().split("/")[-2]
+    # plt.title(f"centers, density={density}")
 
     # show OR save plot - not both at once!
     # plt.show()
 
-    id = location.strip().split("/")[-2]
-    plt.savefig(f"centers_{id}.png")
+    plt.savefig(f"centers_{density}.png")
 
 
 
@@ -165,18 +160,33 @@ def create_heatmap(screen: sz.Screen, location):
 if __name__ == '__main__':
 
     for location in locations:
+        density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
+        mode = location.split('/')[-2]
+        screen_file = "C:/Users/komok/Desktop/centers_screen_bulk_" + mode + '_' + density + ".txt"
+
+
         screen = sz.Screen(x, z, sz.CenterPixel)
-        n = 84
+        n = 9
         t1 = time.time()
         with Pool(NP) as executor:
             i = 0
             for result in executor.starmap(analyze_batch, zip([i for i in range(n)], [location]*n)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(n)]):
+                i += 1
+                # if i < 6: 
+                #     continue
                 screen.append_screenshot(result)
+
+        with open(screen_file, "w") as t:
+            print("", end='', file=t)
+
+        with open(screen_file, "a") as t:
+            print(screen, file=t)
 
         t2 = time.time()
         print(f"Time elapsed: {t2 - t1}")
-        print("Here comes the heatmap!")
-        create_heatmap(screen, location)
-        print("Bye bye, heatmap!")
+
+        # print("Here comes the heatmap!")
+        # create_heatmap(screen, location)
+        # print("Bye bye, heatmap!")
 

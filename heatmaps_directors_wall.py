@@ -8,21 +8,21 @@ import time
 
 
 # locations = [
-#     "E:\LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
-#     "E:\LAMMPS_data/6k/all_snapshots_0.316.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.315.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.314.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.312.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.31.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.308.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
-#     "E:\LAMMPS_data/6k/all_snapshots_0.28.lammpstrj"
+#     "E:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
+#     "E:/LAMMPS_data/6k/all_snapshots_0.316.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.315.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.314.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.312.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.31.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.308.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
+#     "E:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj"
 # ]
 
-# locations = ["C:/Users/komok/Desktop/two_domain_tester/mirror_domains/two_domain_continuation/all_snapshots_0.32.lammpstrj"]
+screen_file = "C:/Users/komok/Desktop/directors_screen_wall.txt"
 
 locations = [
     "E:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj",
@@ -164,16 +164,29 @@ def create_heatmap(screen: sz.Screen, location):
 if __name__ == '__main__':
 
     for location in locations:
+        density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
+        mode = location.split('/')[-2]
+        screen_file = "C:/Users/komok/Desktop/directors_screen_wall_" + mode + '_' + density + ".txt"
+
         screen = sz.Screen(x, z, sz.DirectorPixel)
-        n = 90
+        n = 6
         t1 = time.time()
         with Pool(NP) as executor:
             for result in executor.starmap(analyze_batch, zip([i for i in range(n)], [location]*n)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(n)]):
                 screen.append_screenshot(result)
 
+        with open(screen_file, "w") as t:
+            print("", end='', file=t)
+
+        with open(screen_file, "a") as t:
+            print(screen, file=t)
+
+
         t2 = time.time()
+        print(f"Printed to a file, sir!")
         print(f"Time elapsed: {t2 - t1}")
-        print("Here comes the heatmap!")
-        create_heatmap(screen, location)
-        print("Bye bye, heatmap!")
+
+        # print("Here comes the heatmap!")
+        # create_heatmap(screen, location)
+        # print("Bye bye, heatmap!")
