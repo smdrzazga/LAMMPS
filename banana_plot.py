@@ -24,35 +24,39 @@ class HeatmapPlotter(Plotter):
         self.dict = {
             'xlabel': '', 
             'ylabel': '', 
-            'fontsize': 22, 
-            'figsize': (8, 5), 
-            'cmap': "viridis"
+            'fontsize': 18, 
+            'figsize': (6.4, 4.8), 
+            'cmap': "viridis",
+            'extent': (),
+            'cbarlabel': ''
             }
         # update selected attributes in dictionary
         for key in plot_attr:
             self.dict[key] = plot_attr[key]    
 
 
-    def plot(self, show = True) -> None:
+    def plot(self, fig: plt.figure, ax: plt.axes, show = True) -> plt.figure:
         # parse data from file
         with open(self.matrix_path, "r") as f:
             matrix = [float(line.split()[-1]) for line in f]
             matrix = np.array(matrix).reshape([int(np.sqrt(len(matrix))), -1])
 
-        # create custom plot
-        plt.ioff()
-        fig = plt.figure(figsize = self.dict['figsize'])
-        plt.imshow(matrix[:,3:-3], cmap = self.dict["cmap"])
-        plt.colorbar()
-        plt.xlabel(self.dict["xlabel"], fontsize = self.dict["fontsize"])
-        plt.ylabel(self.dict["ylabel"], fontsize = self.dict["fontsize"])
+        # draw on axes and add colorbar on canvas eg. figure
+        pos = ax.imshow(matrix[:,3:-3], cmap = self.dict["cmap"], extent=self.dict['extent'], aspect=70/45)
+        fig.colorbar(pos, label=self.dict['cbarlabel'])
+        ax.set_xlabel(self.dict["xlabel"], fontsize = self.dict["fontsize"])
+        ax.set_ylabel(self.dict["ylabel"], fontsize = self.dict["fontsize"])
         plt.tight_layout()
+        
         if show:
-            plt.show()
+            ax.show()
+
+        return ax
 
 
     def save(self) -> None:
-        self.plot(show=False)
+        fig, ax = plt.subplots(figsize = self.dict["figsize"])
+        self.plot(fig, ax, show=False)
 
         plt.savefig(self.target_path)
 
@@ -74,12 +78,17 @@ class ErrorPlotter(Plotter):
         self.target_path = target_path
         self.dict = {
             'title': '',
+            'label': '',
             'xlabel': '', 
             'ylabel': '', 
+            'text': '',
+            'textpos': (1, 1),
             'fontsize': 22, 
             'figsize': (8, 5), 
             'c': "black",
             'ecolor': "black",
+            'ctick': 'black',
+            'cylabel': 'black',
             'capsize': 4,
             'fmt':'o',
             'grid_style': '',
@@ -91,28 +100,34 @@ class ErrorPlotter(Plotter):
             self.dict[key] = plot_attr[key]    
 
 
-    def plot(self, show=True) -> None:
-        plt.figure(figsize=self.dict['figsize'])
-        plt.errorbar(self.x, self.y, xerr=self.x_err, yerr=self.y_err, 
+    def plot(self, ax: plt.axes, show=True) -> plt.figure:
+        # fig = plt.figure(figsize=self.dict['figsize'])
+        ax.errorbar(self.x, self.y, xerr=self.x_err, yerr=self.y_err, 
                      fmt=self.dict['fmt'], capsize=self.dict['capsize'], 
-                     c=self.dict['c'], ecolor = self.dict['ecolor'])
-        plt.title(self.dict['title'])
-        plt.xlabel(self.dict['xlabel'], fontsize=self.dict['fontsize'])
-        plt.ylabel(self.dict['ylabel'], fontsize=self.dict['fontsize'])
-        plt.ylim(self.dict['ylim'][0], self.dict['ylim'][1])
+                     c=self.dict['c'], ecolor = self.dict['ecolor'], label=self.dict["label"])
+        ax.set_title(self.dict['title'])
+        ax.set_xlabel(self.dict['xlabel'], fontsize=self.dict['fontsize'])
+        ax.set_ylabel(self.dict['ylabel'], fontsize=self.dict['fontsize'], c=self.dict['cylabel'])
+        ax.tick_params('y', colors=self.dict['ctick'])
+        ax.set_ylim(self.dict['ylim'][0], self.dict['ylim'][1])
+        # ax.text(self.dict['textpos'][0], self.dict['textpos'][1], self.dict['text'])
+        ax.text(self.dict['textpos'][0], self.dict['textpos'][1], self.dict['text'], bbox={'alpha': 0.2, 'color': '#D63230'})
         plt.tight_layout()
 
         if self.dict['grid_style']: 
-            plt.grid(linestyle=self.dict['grid_style'])
+            ax.grid(linestyle=self.dict['grid_style'])
         
         if show:
-            plt.show()
+            ax.show()
+
+        return ax
 
 
     def save(self) -> None:
-        self.plot(show=False)   
+        fig = plt.figure(figsize = self.dict["figsize"])
+        self.plot(fig, show=False)   
 
-        plt.savefig(self.target_path, dpi = self.dict['dpi'])
+        plt.savefig(self.target_path, dpi=self.dict['dpi'])
 
 
     def update(self) -> None:

@@ -1,7 +1,7 @@
 import banana_lib as sz
 
-location = "C:/Users/Szymek/Desktop/Nowy Folder/all_snapshots_0.32.lammpstrj"
-target = "C:/Users/Szymek/Desktop/pokolorowane.lammpstrj"
+location = "G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"
+target = "G:/lammps dane/two_domains/pokolorowane.lammpstrj"
 
 axis = 'y'
 
@@ -14,7 +14,7 @@ with open(location, "r") as f:
             i += 1
 
             try:
-                atom = sz.Atom(*line.split())
+                atom = sz.Atom(line.split()[0], *line.split()[-3:])
             except:
                 if "id" in line: print(f"{line[:-1]} R G B", file=t)
                 else: print(line, end='', file=t)
@@ -37,5 +37,5 @@ with open(location, "r") as f:
                     else: G = director[d[axis]]
                     print(f"{element.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
 
-            # if i > 30:
-            #     break
+            if i > 2e7:
+                break

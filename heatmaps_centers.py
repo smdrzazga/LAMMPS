@@ -6,24 +6,24 @@ from multiprocessing.pool import Pool
 import mmap
 import time
 
-locations = [
-    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
-    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
-]
-# locations = ["E:/LAMMPS_data/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
 # locations = [
-#     "E:/LAMMPS_data/double_z/all_snapshots_0.32.lammpstrj",
-#     "E:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj"
+#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
+#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
+# ]
+locations = ["G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"]
+# locations = [
+#     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
+#     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
 # ]
 
 
@@ -34,6 +34,7 @@ x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
+N_BATCH = 18
 
 # colorbar_limits = (500, 1100)
 # colorbar_limits = (1400, 1800)
@@ -97,16 +98,17 @@ def analyze_batch(n, location):
             # if there is only one molecule remaining to read the full snapshot then execute following
             if atom.id == box.atoms:
                 # eliminate Goldstone's mods by shifting whole system along z axis by:  L_z * Arg(C) / 2pi
-                flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
-                flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
-                pix_to_scroll_left = screenshot.pixels_to_scroll(z, box, flow_left)
-                pix_to_scroll_right = screenshot.pixels_to_scroll(z, box, flow_right)
                 pix_to_scroll_both = screenshot.pixels_to_scroll(z, box, flow)
-                
-                screenshot.scroll(pix_to_scroll_left, side="l")
-                screenshot.scroll(pix_to_scroll_right, side="r")
                 # screenshot.scroll(pix_to_scroll_both, side="both")
+                
+                # flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
+                # flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
+                # pix_to_scroll_left = screenshot.pixels_to_scroll(z, box, flow_left)
+                # pix_to_scroll_right = screenshot.pixels_to_scroll(z, box, flow_right)
+                # screenshot.scroll(pix_to_scroll_left, side="l")
+                # screenshot.scroll(pix_to_scroll_right, side="r")
+                
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshot)
@@ -166,12 +168,11 @@ if __name__ == '__main__':
 
 
         screen = sz.Screen(x, z, sz.CenterPixel)
-        n = 90
         t1 = time.time()
         with Pool(NP) as executor:
             i = 0
-            for result in executor.starmap(analyze_batch, zip([i for i in range(n)], [location]*n)):
-            # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(n)]):
+            for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
+            # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 i += 1
                 # if i < 6: 
                 #     continue
@@ -180,7 +181,7 @@ if __name__ == '__main__':
         with open(screen_file, "w+") as t:
             print("", end='', file=t)
 
-        with open(screen_file, "a") as t:
+        with open(screen_file, "a+") as t:
             print(screen, end='', file=t)
 
         t2 = time.time()

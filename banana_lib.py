@@ -4,7 +4,7 @@ import functools
 from scipy.sparse.linalg import eigsh
 import scipy.sparse.linalg
 
-def is_molecule_torn(molecule, axis):
+def is_molecule_torn(molecule, axis: str) -> bool:
     
     is_torn = 0
     if(axis == 'x'):
@@ -26,7 +26,7 @@ def is_molecule_torn(molecule, axis):
     return is_torn
 
 
-def sew_molecule(molecule, x_box, y_box, z_box):
+def sew_molecule(molecule, x_box: float, y_box: float, z_box: float) -> None:
     # check whether whole 11 atom molecule is read
     if len(molecule.comp) != 11: 
         return 
@@ -46,7 +46,7 @@ def sew_molecule(molecule, x_box, y_box, z_box):
                 molecule.comp[j].z += z_box    
 
 
-def write_heading(target, n, trim):
+def write_heading(target: str, n: int, trim) -> None:
     
     # writing molecule file heading
     with open (target, "w") as t:
@@ -72,7 +72,7 @@ def write_heading(target, n, trim):
 
 
 
-def read_boundaries(file):
+def read_boundaries(file: str) -> tuple[float, float, float, float, float, float]:
 
     i = 0    
     with open (file, "r") as f:
@@ -96,7 +96,7 @@ def read_boundaries(file):
                 return x_min, x_max, y_min, y_max, z_min, z_max
 
 
-def read_number_of_atoms(location):
+def read_number_of_atoms(location: str) -> int:
     with open(location, "r") as f:
         i = 0
         for lines in f:
@@ -109,7 +109,7 @@ def read_number_of_atoms(location):
 
 
 
-def find_max(file, coord):
+def find_max(file: str, coord: str) -> float:
     
     max = 0.
     rows = {"x": 3, "y": 4, "z": 5}
@@ -134,7 +134,7 @@ def find_max(file, coord):
     return max
 
 
-def find_min(file, coord):
+def find_min(file: str, coord: str) -> float:
     
     min = 1000.
     rows = {"x": 3, "y": 4, "z": 5}
@@ -159,7 +159,7 @@ def find_min(file, coord):
     return min
 
 
-def scale(target_volume, current_volume, num_walls):
+def scale(target_volume: float, current_volume: float, num_walls: int) -> float:
     # calculate ratio between current and new box edges lengths
     if num_walls < 3:
         return pow(target_volume / current_volume, 1 / (3 - num_walls))
@@ -168,7 +168,7 @@ def scale(target_volume, current_volume, num_walls):
 
 
 class Atom:
-    def __init__(self, id, x, y, z, type="A"):
+    def __init__(self, id: int, x: float, y: float, z: float, type="A") -> None:
         self.id = int(id)
         self.type = type
         self.position = np.array([float(x), float(y), float(z)])
@@ -188,14 +188,14 @@ class Atom:
 
 
 class Vector:
-    def __init__(self, x, y, z):
+    def __init__(self, x: float, y: float, z: float) -> None:
         self.x = x
         self.y = y
         self.z = z
 
 
 class Simulation_box:
-    def __init__(self, x_min, x_max, y_min, y_max, z_min, z_max, atoms):
+    def __init__(self, x_min: float, x_max: float, y_min: float, y_max: float, z_min: float, z_max: float, atoms: int) -> None:
         self.min = Vector(x_min, y_min, z_min)
         self.max = Vector(x_max, y_max, z_max)
         self.x = x_max - x_min
@@ -208,16 +208,16 @@ class Simulation_box:
         self.volume = self.x * self.y * self.z
 
 class Molecule:
-    def __init__(self, id, num_atoms):
+    def __init__(self, id: int, num_atoms: int) -> None:
         self.id = id   
         self.comp = []
         self.atoms = num_atoms
 
-    def center(self):
+    def center(self) -> Atom:
         return self.comp[self.atoms//2]
 
 
-    def center_of_mass(self):
+    def center_of_mass(self) -> list:
         if len(self.comp) != self.atoms:
             raise Exception("Error: molecule not fully read." )
 
@@ -229,11 +229,11 @@ class Molecule:
         return com / self.atoms
 
 
-    def polarization(self):
+    def polarization(self) -> None:
         return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
 
 
-    def shift(self, x, y, z):
+    def shift(self, x: float, y: float, z: float) -> None:
         m = self.atoms // 2
         mid = Vector(self.comp[m].position[0], self.comp[m].position[1], self.comp[m].position[2] )
         for i in range(self.atoms):     
@@ -242,7 +242,7 @@ class Molecule:
             self.comp[i].position[2] -= mid.z - z
 
 
-    def rotate_x(self, theta):
+    def rotate_x(self, theta: float) -> None:
         # change degrees to radians
         theta *= ( np.pi / 180 )
         for i in range(self.atoms):
@@ -254,7 +254,7 @@ class Molecule:
             self.comp[i].position[2] = temp_y * np.sin(theta) + temp_z * np.cos(theta)
 
 
-    def rotate_y(self, theta):
+    def rotate_y(self, theta: float) -> None:
         # change degrees to radians
         theta *= ( np.pi / 180 )
         for i in range(self.atoms):
@@ -265,7 +265,7 @@ class Molecule:
             # self.comp[i].y = self.comp[i].y 
             self.comp[i].position[2] = -1 * temp_x * np.sin(theta) + temp_z * np.cos(theta)
 
-    def rotate_z(self, phi):        
+    def rotate_z(self, phi: float) -> None:        
         # change degrees to radians
         phi *= ( np.pi / 180 )
         for i in range(self.atoms):
@@ -277,23 +277,23 @@ class Molecule:
             # self.comp[i].z = self.comp[i].z 
 
 
-    def print(self):
+    def print(self) -> None:
         for i in range(Molecule.atoms):
             print(f"{self.comp[i].position}")
         
 
-    def director(self):
+    def director(self) -> list:
         director = self.comp[-1].position - self.comp[0].position
         director /= np.linalg.norm(director)
         
         return director
 
 
-    def add(self, atom):
+    def add(self, atom: Atom) -> None:
         self.comp.append(atom)
 
 class Rescale:
-    def __init__(self, current_packing_fraction, target_packing_fraction):
+    def __init__(self, current_packing_fraction: float, target_packing_fraction: float) -> None:
         self.current_packing_fraction = current_packing_fraction
         self.target_packing_fraction = target_packing_fraction
 
@@ -304,7 +304,7 @@ class Rescale:
 
 
 class Line:
-    def __init__(self, id, type, x, y, z):
+    def __init__(self, id: int, type: str, x: float, y: float, z: float) -> None:
         self.id = int(id)
         self.type = type
         self.x = float(x)
@@ -321,10 +321,10 @@ class Line:
 
 
 class Pixel:
-    def __init__(self):
+    def __init__(self) -> None:
         self.components = []
 
-    def assign(self, atom: Atom):
+    def assign(self, atom: Atom) -> None:
         self.components.append(atom.position)
 
     def mean(self) -> float:
@@ -346,15 +346,15 @@ class Pixel:
 
 
 class CenterPixel(Pixel):
-    def colour(self):
+    def colour(self) -> float:
         return len(self.components)
 
 
 class DirectorPixel(Pixel):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def Q(self):
+    def Q(self) -> list[list]:
         Q = np.zeros((3,3))
         
         for director in self.components:
@@ -365,7 +365,7 @@ class DirectorPixel(Pixel):
 
         return Q
 
-    def local_director(self):
+    def local_director(self) -> list:
         if len(self.components) == 0:
             return np.zeros(3)
         
@@ -378,7 +378,7 @@ class DirectorPixel(Pixel):
         return eigenvector
 
 
-    def P2Value(self, direc=[1,1,1], trunc=True):
+    def P2Value(self, direc=[1,1,1], trunc=True) -> float:
         direction = np.array(direc) / np.linalg.norm(np.array(direc))
 
         # if pixel is empty then return any value
@@ -394,13 +394,13 @@ class DirectorPixel(Pixel):
 
         return p2value
     
-    def colour(self):
+    def colour(self) -> float:
         # return self.P2Value()
         return self.local_director()[1]
     
 
 class Screen:
-    def __init__(self, x, y, pixel_class):
+    def __init__(self, x: int, y: int, pixel_class: Pixel) -> None:
         self.x = x
         self.y = y
         self.screen = [[pixel_class() for j in range(x)] for i in range(y)]
@@ -452,15 +452,15 @@ class Screen:
 
         return bin1, bin2
 
-    def assign(self, atom: Atom, x, y):
+    def assign(self, atom: Atom, x: float, y: float) -> None:
         self.screen[y][x].assign(atom)
 
-    def append_screenshot(self, screenshot: list):
+    def append_screenshot(self, screenshot: list) -> None:
         for i in range(self.y):
             for j in range(self.x):
                 self.screen[i][j].merge_pixels(screenshot.screen[i][j])
     
-    def colour(self):
+    def colour(self) -> list[list]:
         colour = np.zeros((self.x, self.y))
 
         for i in range(self.y):
@@ -469,7 +469,7 @@ class Screen:
 
         return colour
 
-    def avg_director(self):
+    def avg_director(self) -> list:
         if not isinstance(self.screen[0][0], DirectorPixel):
             raise Exception("Pixel has to be Director Pixel")
 
@@ -486,11 +486,11 @@ class Screen:
 
 
 class Screenshot(Screen):
-    def __init__(self, x, y, pixel_class):
+    def __init__(self, x: int, y: int, pixel_class: Pixel) -> None:
         super().__init__(x, y, pixel_class)
 
 
-    def pixels_to_scroll(self, pixel_num, box: Simulation_box, drift) -> int:
+    def pixels_to_scroll(self, pixel_num: int, box: Simulation_box, drift: float) -> int:
         # determine numer of pixels that the image should be scrolled in order to get smectic interferences at the same place
         return int(pixel_num * drift / box.z)
     
@@ -535,15 +535,15 @@ class Screenshot(Screen):
 
 class HorizontalSlice(Screen):
     # initializing Slice as a single pixel of type matching current screen
-    def __init__(self, screen: Screen, row):
+    def __init__(self, screen: Screen, row: int) -> None:
         self.component = type(screen.screen[0][0])()
         self.row = row
 
-    def read_slice(self, screen, start, end):
+    def read_slice(self, screen: Screen, start: int, end: int) -> None:
         for i in range(start, end):
             self.component.merge_pixels(screen.screen[self.row][i])
         
-    def slice_director(self):
+    def slice_director(self) -> list:
         if not isinstance(self.slice, DirectorPixel):
             raise Exception("Pixel has to be Director Pixel")
 
@@ -552,15 +552,15 @@ class HorizontalSlice(Screen):
 
 class VerticalSlice(Screen):
     # initializing Slice as a single pixel of type matching current screen
-    def __init__(self, screen: Screen, row):
+    def __init__(self, screen: Screen, row: int) -> None:
         self.component = type(screen.screen[0][0])()
         self.row = row
 
-    def read_slice(self, screen, start, end):
+    def read_slice(self, screen: Screen, start: int, end: int) -> None:
         for i in range(start, end):
             self.component.merge_pixels(screen.screen[i][self.row])
         
-    def slice_director(self):
+    def slice_director(self) -> list:
         if not isinstance(self.slice, DirectorPixel):
             raise Exception("Pixel has to be Director Pixel")
 
@@ -568,7 +568,7 @@ class VerticalSlice(Screen):
 
 
 class SmecticParameter():
-    def __init__(self, periods) -> None:
+    def __init__(self, periods: int) -> None:
         self.parameter = 0 + 0j
         self.count = 0
         self.periods = periods
@@ -577,8 +577,8 @@ class SmecticParameter():
        return f"{np.abs(self.parameter):.3f} | {self.count}"
 
     # only for vertical slices in y-z plane!
-    def add_atom(self, center, box: Simulation_box) -> None:
-        self.parameter += np.exp(self.periods * 2*np.pi*1j * center[-1] / box.z)
+    def add_atom(self, center_coords: list, box: Simulation_box) -> None:
+        self.parameter += np.exp(self.periods * 2*np.pi*1j * center_coords[-1] / box.z)
         self.count += 1
         # print(np.exp(2*np.pi*1j * center[-1] / box.z))
 

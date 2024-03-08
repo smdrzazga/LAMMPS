@@ -8,25 +8,25 @@ import time
 
 
 
-locations = [
-    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
-    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
-]
-
 # locations = [
-#            "E:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj",
-#            "E:/LAMMPS_data/double_z/all_snapshots_0.32.lammpstrj"
-#            ]
+#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
+#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
+# ]
+locations = ["G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"]
+# locations = [
+#     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
+#     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
+# ]
 
 
 NP = 12
@@ -36,7 +36,7 @@ x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
-N_BATCH = 90
+N_BATCH = 18
 
 
 def analyze_batch(n, location):
@@ -108,7 +108,7 @@ def analyze_batch(n, location):
 
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
                 pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
-                screenshotDirector.scroll(pix_to_scroll_both, side="both")
+                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshotDirector)
