@@ -9,34 +9,34 @@ import time
 
 
 # locations = [
-#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
-#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
+#     "D:/LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
+#     "D:/LAMMPS_data/6k/all_snapshots_0.316.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.315.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.31.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.314.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.312.lammpstrj",
+#     "D:/LAMMPS_data/6k/all_snapshots_0.307.lammpstrj"
 # ]
-locations = ["G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"]
+locations = ["D:/LAMMPS_data/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
 # locations = [
-#     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
-#     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
+#     "D:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj",
+#     "D:/LAMMPS_data/double_z/all_snapshots_0.32.lammpstrj"
 # ]
 
 
-NP = 12
+NP = 8
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
-N_BATCH = 18
+N_BATCH = 16
 
 
 def analyze_batch(n, location):
@@ -128,39 +128,27 @@ def analyze_batch(n, location):
 
 
 
-def create_scatter(screen, location):
-
+def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 9) -> None:
+    # common choices are 150x150 pix screen size
+    # pixels 4:9 for wall and 73:78 for bulk  
+    
+    # initialize
     slices = [sz.HorizontalSlice(screen, row) for row in range(0, z)]
     slice_directors = np.zeros((z, 3))
+
+
     for i, slice in enumerate(slices):
-        # slice.read_slice(screen, 73, 78)
-        slice.read_slice(screen, 4, 9)
+        slice.read_slice(screen, start, end)
         slice_directors[i] = slice.component.local_director()
 
+    # create empty file / clear existing values
+    with open(location, "w+") as l:
+        print('', end='', file=l)
 
-    # section for determining average directors for every horizontal system slice
-    fig, axes = plt.subplots()
-
-    axes.scatter(slice_directors[:, 0], slice_directors[:, 1])
-    axes.axis('scaled')
-    plt.xlim(-0.7, 0.7)
-    plt.ylim(-0.7, 0.7)
-    # plt.axis('equal')
-
-
-    plt.xlabel(f"x")
-    plt.ylabel(f"y")
-    
-    density = location.split("_")[-1].split(".")
-    zeros = ""
-    for i in range(3-len(density[1])):
-        zeros += "0"
-    density = density[0] + "." + density[1] + zeros
-    plt.title(f"directors bulk, d={density}")
-
-    # plt.show()
-    plt.savefig(f"directors_{density}_not_bulk.png")
-
+    with open(location, "a+") as l:
+        # print(slice, end='', file=l)
+        for i in range(z):
+            print(f"{i} {slice_directors[i, 0]} {slice_directors[i, 1]} {slice_directors[i, 2]}", file=l)
 
 
 
@@ -170,7 +158,7 @@ if __name__ == '__main__':
     for location in locations:
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
+        # screen_file = "C:/Users/komok/Desktop/LAMMPS_matrices/scatter_matrices/scatter_screen_interface_" + mode + '_' + density + ".txt"
 
         screen = sz.Screen(x, z, sz.DirectorPixel)
         t1 = time.time()
@@ -179,15 +167,25 @@ if __name__ == '__main__':
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 screen.append_screenshot(result)
 
-        with open(screen_file, "w+") as t:
-            print("", end='', file=t)
+        # with open(screen_file, "w+") as t:
+        #     print("", end='', file=t)
 
-        with open(screen_file, "a+") as t:
-            print(screen, end='', file=t)
+        # with open(screen_file, "a+") as t:
+        #     print(screen, end='', file=t)
 
-        t2 = time.time()
-        print(f"Time elapsed: {t2 - t1}")
+    n = 0
+    for i in range(5):
+        for j in range(5):
+            screen_file = "C:/Users/komok/Desktop/test_interface/" + str(n) + ".txt"
+            start = 35 + i
+            end = 50 + j
+            print("Here comes the heatmap!")
+            create_scatter(screen, screen_file, start=start, end=end)
+            print("Bye bye, heatmap!")
 
-        # print("Here comes the heatmap!")
-        # create_scatter(screen, location)
-        # print("Bye bye, heatmap!")
+            t2 = time.time()
+            print(f"Time elapsed: {t2 - t1}")
+            
+            n += 1
+
+# 39, 46

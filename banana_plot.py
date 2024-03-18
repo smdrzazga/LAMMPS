@@ -6,7 +6,7 @@ from scipy.optimize import curve_fit
 
 
 plt.rcParams.update({'font.size': 18})
-plt.rcParams.update({"text.usetex": True})
+plt.rcParams.update({"text.usetex": False})
 
 
 class Plotter():
@@ -133,3 +133,64 @@ class ErrorPlotter(Plotter):
     def update(self) -> None:
         # currently not needed
         pass
+
+
+class ScatterPlotter(Plotter):
+    def __init__(self, matrix_path: str, target_path: str, plot_attr = {}) -> None:
+        self.matrix_path = matrix_path
+        self.target_path = target_path
+        self.dict = {
+            'xlabel': '', 
+            'ylabel': '', 
+            'fontsize': 18, 
+            'c': 'black',
+            's': 1/72,
+            'figsize': (6, 6), 
+            'xlim': (-0.7, 0.7),
+            'ylim': (-0.7, 0.7),
+            'ecolor': 'black',
+            'label': ''
+            }
+        # update selected attributes in dictionary
+        for key in plot_attr:
+            self.dict[key] = plot_attr[key]    
+
+
+    def plot(self, fig: plt.figure, ax: plt.axes, show = True, i: int = 1) -> plt.figure:
+        # parse data from file
+        with open(self.matrix_path, "r") as f:
+            matrix = [np.array(line.split()[-3:], dtype=np.float64) for line in f]
+            matrix = np.array(matrix).reshape([-1, 3])
+
+        # draw on axes and add colorbar on canvas eg. figure
+        x = matrix[:, 0] + 0.3*(i-1)
+        y = matrix[:, 1] 
+        pos = ax.scatter(x, y, c = self.dict["c"], s = self.dict['s'], edgecolors = self.dict['ecolor'])
+        pos.set_label(self.dict['label'])
+        
+        # specify additional params
+        ax.set_xlim(*self.dict["xlim"])
+        ax.set_ylim(*self.dict["ylim"])
+        ax.set_xlabel(self.dict["xlabel"], fontsize = self.dict["fontsize"])
+        ax.set_ylabel(self.dict["ylabel"], fontsize = self.dict["fontsize"])
+        plt.tight_layout()
+        
+        if show:
+            plt.show()
+
+        return ax
+
+
+    def save(self) -> None:
+        fig, ax = plt.subplots(figsize = self.dict["figsize"])
+        self.plot(fig, ax, show=False)
+
+        plt.savefig(self.target_path)
+
+
+    def update(self, new_figure_path='', new_target_path='', new_plot_attr={}) -> None:
+        if new_figure_path: self.figure_path = new_figure_path
+        if new_target_path: self.target_path = new_target_path
+        if new_plot_attr:
+            for key in new_plot_attr:
+                self.dict[key] = new_plot_attr[key]

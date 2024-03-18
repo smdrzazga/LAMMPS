@@ -394,9 +394,10 @@ class DirectorPixel(Pixel):
 
         return p2value
     
-    def colour(self) -> float:
+    def colour(self) -> str:
         # return self.P2Value()
         return self.local_director()[1]
+        # return f"{self.local_director()[0]} {self.local_director()[1]} {self.local_director()[2]}"
     
 
 class Screen:
@@ -411,10 +412,14 @@ class Screen:
         for i in range(self.y):
             for j in range(self.x):
                 pos = f"{z} {i/self.y} {j/self.x} " # z,y,x coords of pixel, 
+                n = f"{len(self.screen[i][j].components)} "
                 colour = f"{self.screen[i][j].colour()} "
-                pix = pos + colour + '\n'
+                pix = pos + n + colour + '\n'
+
                 data = data + pix
+
         return data
+
 
     def determine_pixel(self, atom: Atom, box: Simulation_box, plane='xz') -> tuple[int, int]:
         # prepare data from proper directions for further processing 
@@ -538,13 +543,25 @@ class HorizontalSlice(Screen):
     def __init__(self, screen: Screen, row: int) -> None:
         self.component = type(screen.screen[0][0])()
         self.row = row
+        self.max_row = screen.x
+
+    def __repr__(self) -> str:
+        z = 0.5
+        data = str()
+
+        pos = f"{self.row / self.max_row} " # normalized index of slice, 
+        d = self.slice_director()
+        director = f"{d[0]} {d[1]} {d[2]}"
+        data = data + pos + director + '\n'
+        
+        return data
 
     def read_slice(self, screen: Screen, start: int, end: int) -> None:
         for i in range(start, end):
             self.component.merge_pixels(screen.screen[self.row][i])
         
     def slice_director(self) -> list:
-        if not isinstance(self.slice, DirectorPixel):
+        if not isinstance(self.component, DirectorPixel):
             raise Exception("Pixel has to be Director Pixel")
 
         return self.component.local_director()
@@ -561,7 +578,7 @@ class VerticalSlice(Screen):
             self.component.merge_pixels(screen.screen[i][self.row])
         
     def slice_director(self) -> list:
-        if not isinstance(self.slice, DirectorPixel):
+        if not isinstance(self.component, DirectorPixel):
             raise Exception("Pixel has to be Director Pixel")
 
         return self.component.local_director()
