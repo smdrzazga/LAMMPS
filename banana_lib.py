@@ -212,7 +212,6 @@ class Molecule:
         self.id = id   
         self.comp = []
         self.atoms = num_atoms
-        self._angle = 130
 
     def center(self):
         return self.comp[self.atoms//2]
@@ -232,11 +231,6 @@ class Molecule:
 
     def polarization(self):
         return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
-    
-
-    def length(self):
-        R = self.atoms * 360 / (180 - self._angle) / (2*np.pi)
-        return 9.68
 
 
     def shift(self, x, y, z):
@@ -413,12 +407,14 @@ class Screen:
 
     def __repr__(self) -> str:
         z = 0.5
-        name = ""
+        data = str()
         for i in range(self.y):
             for j in range(self.x):
-                pix = f"{z} {i/self.y:.5f} {j/self.x:.5f} {self.screen[i][j].colour():.5f}\n"
-                name += pix
-        return name
+                pos = f"{z} {i/self.y} {j/self.x} " # z,y,x coords of pixel, 
+                colour = f"{self.screen[i][j].colour()} "
+                pix = pos + colour + '\n'
+                data = data + pix
+        return data
 
     def determine_pixel(self, atom: Atom, box: Simulation_box, plane='xz') -> tuple[int, int]:
         # prepare data from proper directions for further processing 
@@ -470,28 +466,6 @@ class Screen:
         for i in range(self.y):
             for j in range(self.x):
                 colour[i, j] = self.screen[i][j].colour()
-
-        return colour
-    
-    def normalized_colour(self):
-        colour = np.zeros((self.x, self.y))
-
-        # create colour matrix
-        for i in range(self.y):
-            for j in range(self.x):
-                colour[i, j] = self.screen[i][j].colour()
-
-        # calculate norm
-        norm = 0
-        for i in range(self.y):
-            for j in range(self.x):
-                norm += colour[i, j]
-
-        norm /= self.x * self.y
-        # normalize matrix to get density profile
-        for i in range(self.y):
-            for j in range(self.x):
-                colour[i, j] /= norm
 
         return colour
 
@@ -603,16 +577,16 @@ class SmecticParameter():
        return f"{np.abs(self.parameter):.3f} | {self.count}"
 
     # only for vertical slices in y-z plane!
-    def add_atom(self, center, box: Simulation_box):
+    def add_atom(self, center, box: Simulation_box) -> None:
         self.parameter += np.exp(self.periods * 2*np.pi*1j * center[-1] / box.z)
         self.count += 1
         # print(np.exp(2*np.pi*1j * center[-1] / box.z))
 
-    def normalize(self):
+    def normalize(self) -> None:
         if self.count != 0:
             self.parameter /= self.count
     
-    def read_screen(self, screen: Screen, start, end):
+    def read_screen(self, screen: Screen, start: int, end: int) -> None:
         HARD_CODED_LIMIT = 0
         # HARD_CODED_LIMIT = int((self.periods % 1.0) * screen.y / self.periods)
         # print(HARD_CODED_LIMIT, screen.y)
@@ -625,6 +599,28 @@ class SmecticParameter():
                 self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
                 self.count += screen.screen[y][x].colour()
                 # print(self)
+
+def read_matrix(file: str, n_slices: float, n_periods: int) -> list:
+    list_of_params = np.zeros(n_slices, dtype=np.complex128)
+    list_of_counts = np.zeros(n_slices)
+
+    with open(file, "r") as f:
+        for pixel in f:
+            # read colour and coordinates of pixels
+            z, y, x, N = pixel.split()
+            z, y, x, N = float(z), float(y), float(x), int(N)
+
+            # calculate slice to which pixel belongs and accumulate its contribution to smectic parameter
+            index = int(x * n_slices)
+            list_of_params[index] += np.exp(n_periods* 2*np.pi*1j * y) * N
+            list_of_counts[index] += N
+
+    # normalize parameters, take care of zero division
+    for i in range(n_slices):
+        if list_of_counts[i] != 0:
+            list_of_params[i] /= list_of_counts[i]
+
+    return list_of_params
 
 
 def wrap_atom_to_box(atom: Atom, box: Simulation_box) -> Atom:
