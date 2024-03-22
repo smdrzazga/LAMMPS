@@ -2,11 +2,12 @@ import numpy as np
 import banana_lib as sz
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from math import ceil
 
 
 
 plt.rcParams.update({'font.size': 18})
-plt.rcParams.update({"text.usetex": False})
+plt.rcParams.update({"text.usetex": True})
 
 
 class Plotter():
@@ -27,29 +28,45 @@ class HeatmapPlotter(Plotter):
             'fontsize': 18, 
             'figsize': (6.4, 4.8), 
             'cmap': "viridis",
-            'extent': (),
-            'cbarlabel': ''
+            'interpol': "bicubic",
+            'extent': [None, None, None, None],
+            'aspect': 70/45,
+            'cbarlabel': '',
+            'cbarshrink': 1.
             }
         # update selected attributes in dictionary
         for key in plot_attr:
             self.dict[key] = plot_attr[key]    
 
-
-    def plot(self, fig: plt.figure, ax: plt.axes, show = True) -> plt.figure:
-        # parse data from file
+    def read_heatmap(self, normalize: bool) -> list[list]:
         with open(self.matrix_path, "r") as f:
             matrix = [float(line.split()[-1]) for line in f]
-            matrix = np.array(matrix).reshape([int(np.sqrt(len(matrix))), -1])
+            matrix = np.array(matrix, dtype=np.float64).reshape([int(np.sqrt(len(matrix))), -1])
+
+        if normalize:
+            avg = np.sum(matrix) / matrix.shape[0] / matrix.shape[1]    # average color per pixel
+            matrix /= avg
+
+        return matrix
+
+
+    def plot(self, fig: plt.figure, ax: plt.axes, normalize: bool = False, show = True) -> plt.figure:
+        # read data from file
+        matrix = self.read_heatmap(normalize=normalize)
 
         # draw on axes and add colorbar on canvas eg. figure
-        pos = ax.imshow(matrix[:,3:-3], cmap = self.dict["cmap"], extent=self.dict['extent'], aspect=70/45)
-        fig.colorbar(pos, label=self.dict['cbarlabel'])
+        pos = ax.imshow(matrix[:,4:-4], cmap = self.dict["cmap"], extent=self.dict['extent'], 
+                        interpolation=self.dict['interpol'], aspect=self.dict["aspect"])
+
+        cbar = fig.colorbar(pos, label=self.dict['cbarlabel'], shrink=self.dict['cbarshrink'])
+        if 'cbarticks' in self.dict.keys(): cbar.set_ticks(self.dict['cbarticks'])
+
         ax.set_xlabel(self.dict["xlabel"], fontsize = self.dict["fontsize"])
         ax.set_ylabel(self.dict["ylabel"], fontsize = self.dict["fontsize"])
         plt.tight_layout()
         
         if show:
-            ax.show()
+            plt.show()
 
         return ax
 
@@ -163,7 +180,7 @@ class ScatterPlotter(Plotter):
             matrix = np.array(matrix).reshape([-1, 3])
 
         # draw on axes and add colorbar on canvas eg. figure
-        x = matrix[:, 0] + 0.3*(i-1)
+        x = matrix[:, 0] + 0.4*(i-1)
         y = matrix[:, 1] 
         pos = ax.scatter(x, y, c = self.dict["c"], s = self.dict['s'], edgecolors = self.dict['ecolor'])
         pos.set_label(self.dict['label'])

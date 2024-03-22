@@ -9,34 +9,35 @@ import time
 
 
 # locations = [
-#     "D:/LAMMPS_data/6k/all_snapshots_0.318.lammpstrj",    
-#     "D:/LAMMPS_data/6k/all_snapshots_0.316.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.315.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.31.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.3.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.305.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.29.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.28.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.32.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.314.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.312.lammpstrj",
-#     "D:/LAMMPS_data/6k/all_snapshots_0.307.lammpstrj"
+#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.307.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
+#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
 # ]
-locations = ["D:/LAMMPS_data/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
-# locations = [
-#     "D:/LAMMPS_data/double_z/all_snapshots_0.312.lammpstrj",
-#     "D:/LAMMPS_data/double_z/all_snapshots_0.32.lammpstrj"
-# ]
+# locations = ["G:/lammps dane/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
+locations = [
+#     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
+      "G:/lammps dane/double_z/test_const_z_90/all_snapshots_0.298.lammpstrj"
+]
 
 
-NP = 8
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000
+NP = 9
+DIRECTOR_PERIODS = 1
+N_BATCH = 27
+SIZE = mmap.ALLOCATIONGRANULARITY * 1000 * DIRECTOR_PERIODS
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
-DIRECTOR_PERIODS = 1
-N_BATCH = 16
 
 
 def analyze_batch(n, location):
@@ -108,7 +109,7 @@ def analyze_batch(n, location):
 
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
                 pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
-                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
+                screenshotDirector.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshotDirector)
@@ -128,7 +129,7 @@ def analyze_batch(n, location):
 
 
 
-def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 9) -> None:
+def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 9, new_file: bool = True) -> None:
     # common choices are 150x150 pix screen size
     # pixels 4:9 for wall and 73:78 for bulk  
     
@@ -142,8 +143,9 @@ def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 
         slice_directors[i] = slice.component.local_director()
 
     # create empty file / clear existing values
-    with open(location, "w+") as l:
-        print('', end='', file=l)
+    if new_file:
+        with open(location, "w+") as l:
+            print('', end='', file=l)
 
     with open(location, "a+") as l:
         # print(slice, end='', file=l)
@@ -158,7 +160,7 @@ if __name__ == '__main__':
     for location in locations:
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        # screen_file = "C:/Users/komok/Desktop/LAMMPS_matrices/scatter_matrices/scatter_screen_interface_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
 
         screen = sz.Screen(x, z, sz.DirectorPixel)
         t1 = time.time()
@@ -167,25 +169,24 @@ if __name__ == '__main__':
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 screen.append_screenshot(result)
 
-        # with open(screen_file, "w+") as t:
-        #     print("", end='', file=t)
+        with open(screen_file, "w+") as t:
+            print("", end='', file=t)
 
-        # with open(screen_file, "a+") as t:
-        #     print(screen, end='', file=t)
+        with open(screen_file, "a+") as t:
+            print(screen, end='', file=t)
 
-    n = 0
-    for i in range(5):
-        for j in range(5):
-            screen_file = "C:/Users/komok/Desktop/test_interface/" + str(n) + ".txt"
-            start = 35 + i
-            end = 50 + j
-            print("Here comes the heatmap!")
-            create_scatter(screen, screen_file, start=start, end=end)
-            print("Bye bye, heatmap!")
+    # screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
+    # create_scatter(screen, screen_file, start=4, end=9)
+    # for i in range(10, 145, 5):
+    #     start = i
+    #     end = i + 5
+    #     print("Here comes the heatmap!")
 
-            t2 = time.time()
-            print(f"Time elapsed: {t2 - t1}")
-            
-            n += 1
+    #     create_scatter(screen, screen_file, start=start, end=end, new_file=False)
+    #     print("Bye bye, heatmap!")
+
+    #     t2 = time.time()
+    #     print(f"Time elapsed: {t2 - t1}")
+        
 
 # 39, 46
