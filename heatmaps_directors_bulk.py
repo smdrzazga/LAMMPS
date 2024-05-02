@@ -22,22 +22,22 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
 #     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
 # ]
-# locations = ["G:/lammps dane/two_domains/peter_case/all_snapshots_0.32.lammpstrj"]
-locations = [
+locations = ["G:/lammps dane/4z_local/4z_240/all_snapshots_0.3.lammpstrj"]
+# locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
 #     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
-      "G:/lammps dane/double_z/test_const_z_90/all_snapshots_0.298.lammpstrj"
-]
+#       "G:/lammps dane/double_z/test_const_z_90/all_snapshots_0.298.lammpstrj"
+# ]
 
 
-NP = 9
+NP = 10
 DIRECTOR_PERIODS = 1
-N_BATCH = 27
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000 * DIRECTOR_PERIODS
+N_BATCH = 40
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
+SIZE = mmap.ALLOCATIONGRANULARITY * 2000 * DIRECTOR_PERIODS
 
 
 def analyze_batch(n, location):
@@ -107,9 +107,9 @@ def analyze_batch(n, location):
                 # screenshotDirector.scroll(pix_to_scroll_left, side="l")
                 # screenshotDirector.scroll(pix_to_scroll_right, side="r")
 
-                flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
-                pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
-                screenshotDirector.scroll(pix_to_scroll_both, side="both")
+                # flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
+                # pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
+                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshotDirector)
@@ -160,33 +160,38 @@ if __name__ == '__main__':
     for location in locations:
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
 
         screen = sz.Screen(x, z, sz.DirectorPixel)
         t1 = time.time()
         with Pool(NP) as executor:
+            i = 0
             for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
+                i += 1
+                if i < 20: 
+                    continue
                 screen.append_screenshot(result)
 
-        with open(screen_file, "w+") as t:
-            print("", end='', file=t)
+        # with open(screen_file, "w+") as t:
+        #     print("", end='', file=t)
 
-        with open(screen_file, "a+") as t:
-            print(screen, end='', file=t)
+        # with open(screen_file, "a+") as t:
+        #     print("Here comes the heatmap!")
+        #     print(screen, end='', file=t)
+        #     print("Finished! Yay!")
 
-    # screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
-    # create_scatter(screen, screen_file, start=4, end=9)
-    # for i in range(10, 145, 5):
-    #     start = i
-    #     end = i + 5
-    #     print("Here comes the heatmap!")
 
-    #     create_scatter(screen, screen_file, start=start, end=end, new_file=False)
-    #     print("Bye bye, heatmap!")
+    screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
+    create_scatter(screen, screen_file, start=4, end=9)
+    for i in range(10, 145, 5):
+        start = i
+        end = i + 5
+        print("Here comes the heatmap!")
 
-    #     t2 = time.time()
-    #     print(f"Time elapsed: {t2 - t1}")
+        create_scatter(screen, screen_file, start=start, end=end, new_file=False)
+        print("Bye bye, heatmap!")
+
         
 
 # 39, 46

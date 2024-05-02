@@ -20,21 +20,21 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
 #     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
 # ]
-locations = ["G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"]
+locations = ["G:/lammps dane/4z_local/4z_240/all_snapshots_0.3.lammpstrj"]
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
 # ]
 
 
-NP = 12
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000
+NP = 10
+SIZE = mmap.ALLOCATIONGRANULARITY * 2000
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
-N_BATCH = 18
+N_BATCH = 40
 
 # colorbar_limits = (500, 1100)
 # colorbar_limits = (1400, 1800)
@@ -164,8 +164,8 @@ if __name__ == '__main__':
     for location in locations:
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_screen_bulk_" + mode + '_' + density + ".txt"
-
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_bulk_" + mode + '_' + density + ".txt"
+        # screen_file = "C:/Users/Szymek/Desktop/test/centers_screen_bulk_" + mode + '_' + density + ".txt"
 
         screen = sz.Screen(x, z, sz.CenterPixel)
         t1 = time.time()
@@ -174,8 +174,8 @@ if __name__ == '__main__':
             for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 i += 1
-                # if i < 6: 
-                #     continue
+                if i < 20: 
+                    continue
                 screen.append_screenshot(result)
 
         with open(screen_file, "w+") as t:
