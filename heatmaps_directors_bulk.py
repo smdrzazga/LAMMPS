@@ -22,7 +22,8 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
 #     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
 # ]
-locations = ["G:/lammps dane/4z_local/4z_240/all_snapshots_0.3.lammpstrj"]
+locations = ["G:/lammps dane/4z_2x/all_snapshots_0.305.lammpstrj"]
+# locations = ['G:/lammps dane/4z_local/4z_peter/all_snapshots_0.26.lammpstrj']
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
 #     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
@@ -32,7 +33,8 @@ locations = ["G:/lammps dane/4z_local/4z_240/all_snapshots_0.3.lammpstrj"]
 
 NP = 10
 DIRECTOR_PERIODS = 1
-N_BATCH = 40
+N_BATCH = 94
+BATCH_START = 90
 # input bin size and side of simulation box
 x = 150
 z = 150
@@ -169,28 +171,28 @@ if __name__ == '__main__':
             for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 i += 1
-                if i < 20: 
+                if i < BATCH_START: 
                     continue
                 screen.append_screenshot(result)
 
-        # with open(screen_file, "w+") as t:
-        #     print("", end='', file=t)
+        with open(screen_file, "w+") as t:
+            print("", end='', file=t)
 
-        # with open(screen_file, "a+") as t:
-        #     print("Here comes the heatmap!")
-        #     print(screen, end='', file=t)
-        #     print("Finished! Yay!")
+        with open(screen_file, "a+") as t:
+            print("Here comes the heatmap!")
+            print(screen, end='', file=t)
+            print("Finished! Yay!")
 
 
-    screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
-    create_scatter(screen, screen_file, start=4, end=9)
-    for i in range(10, 145, 5):
-        start = i
-        end = i + 5
-        print("Here comes the heatmap!")
+    # screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
+    # create_scatter(screen, screen_file, start=4, end=9)
+    # for i in range(10, 145, 5):
+    #     start = i
+    #     end = i + 5
+    #     print("Here comes the heatmap!")
 
-        create_scatter(screen, screen_file, start=start, end=end, new_file=False)
-        print("Bye bye, heatmap!")
+    #     create_scatter(screen, screen_file, start=start, end=end, new_file=False)
+    #     print("Bye bye, heatmap!")
 
         
 

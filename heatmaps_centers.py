@@ -35,6 +35,7 @@ z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
 N_BATCH = 40
+BATCH_START = 20
 
 # colorbar_limits = (500, 1100)
 # colorbar_limits = (1400, 1800)
@@ -174,7 +175,7 @@ if __name__ == '__main__':
             for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
             # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
                 i += 1
-                if i < 20: 
+                if i < BATCH_START: 
                     continue
                 screen.append_screenshot(result)
 
