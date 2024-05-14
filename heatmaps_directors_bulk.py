@@ -22,7 +22,7 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
 #     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
 # ]
-locations = ["G:/lammps dane/4z_2x/all_snapshots_0.305.lammpstrj"]
+locations = ["G:/lammps dane/double_z/test_const_z_135/all_snapshots_0.3.lammpstrj"]
 # locations = ['G:/lammps dane/4z_local/4z_peter/all_snapshots_0.26.lammpstrj']
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
@@ -33,8 +33,8 @@ locations = ["G:/lammps dane/4z_2x/all_snapshots_0.305.lammpstrj"]
 
 NP = 10
 DIRECTOR_PERIODS = 1
-N_BATCH = 94
-BATCH_START = 90
+N_BATCH = 22
+BATCH_START = 10
 # input bin size and side of simulation box
 x = 150
 z = 150

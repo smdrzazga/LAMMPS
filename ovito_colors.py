@@ -19,8 +19,10 @@ def palette(director, colors, N):
     return R, G, B
 
 
-location = r"G:\lammps dane\4z_2x\all_snapshots_0.305.lammpstrj"
-target = r"G:\lammps dane\4z_2x\coloured_4z_2x_0.305.lammpstrj"
+# location = r"G:\lammps dane\4z_2x\all_snapshots_0.305.lammpstrj"
+# target = r"G:\lammps dane\4z_2x\coloured_4z_2x_0.305.lammpstrj"
+location = r"C:\Users\Szymek\Desktop\pokaz\4z\middle_snapshot_16000000.lammpstrj"
+target = r"C:\Users\Szymek\Desktop\pokaz\4z\coloured_middle_snapshot_16000000.lammpstrj"
 
 axis = 'x'
 num_bananas = 528000

@@ -20,7 +20,7 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
 #     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
 # ]
-locations = ["G:/lammps dane/4z_local/4z_240/all_snapshots_0.3.lammpstrj"]
+locations = ["G:/lammps dane/double_z/test_const_z_115/all_snapshots_0.305.lammpstrj"]
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
@@ -34,8 +34,8 @@ x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
-N_BATCH = 40
-BATCH_START = 20
+N_BATCH = 22
+BATCH_START = 5
 
 # colorbar_limits = (500, 1100)
 # colorbar_limits = (1400, 1800)
