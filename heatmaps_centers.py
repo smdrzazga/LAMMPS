@@ -20,7 +20,8 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
 #     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj"
 # ]
-locations = ["G:/lammps dane/double_z/test_const_z_115/all_snapshots_0.305.lammpstrj"]
+locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj"
@@ -28,14 +29,14 @@ locations = ["G:/lammps dane/double_z/test_const_z_115/all_snapshots_0.305.lammp
 
 
 NP = 10
-SIZE = mmap.ALLOCATIONGRANULARITY * 2000
+SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
 DIRECTOR_PERIODS = 1
-N_BATCH = 22
-BATCH_START = 5
+N_BATCH = 250
+BATCH_START = 150
 
 # colorbar_limits = (500, 1100)
 # colorbar_limits = (1400, 1800)
@@ -48,6 +49,9 @@ def analyze_batch(n, location):
     box = sz.Simulation_box(*sz.read_boundaries(location), sz.read_number_of_atoms(location))
     screen = sz.Screen(x, z, sz.CenterPixel)
     screenshot = sz.Screenshot(x, z, sz.CenterPixel)
+
+    if n < BATCH_START:
+        return screen
 
     molecule = sz.Molecule(1, 11)
     C_left = 0 + 0j

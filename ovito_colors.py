@@ -3,26 +3,28 @@ import numpy as np
 from matplotlib import cm
 from matplotlib.colors import hsv_to_rgb
 
-# def palette(director):
-#     R = director[0]
-#     B = -0.5*director[0] - 1.73/2*director[1]
-#     G = -0.5*director[0] + 1.73/2*director[1]    
+
+# def palette(director, colors, N):
+#     cast = director[0] + 1.j*director[1]
+#     angle = (np.angle(cast) / 2 / np.pi) + 0.5       # angle ranging from 0 to 1 in full angle units
+
+#     i = int(N * angle) - 1
+#     [R, G, B] = colors[i, :]
+
 #     return R, G, B
 
-def palette(director, colors, N):
-    cast = director[0] + 1.j*director[1]
-    angle = (np.angle(cast) / 2 / np.pi) + 0.5       # angle ranging from 0 to 1 in full angle units
+def palette(vector, colors, N):
+    p = 0.0
+    number = (vector[1] - p) / (1 - p)
 
-    i = int(N * angle) - 1
+    i = int(N * number) -1
     [R, G, B] = colors[i, :]
 
     return R, G, B
 
 
-# location = r"G:\lammps dane\4z_2x\all_snapshots_0.305.lammpstrj"
-# target = r"G:\lammps dane\4z_2x\coloured_4z_2x_0.305.lammpstrj"
-location = r"C:\Users\Szymek\Desktop\pokaz\4z\middle_snapshot_16000000.lammpstrj"
-target = r"C:\Users\Szymek\Desktop\pokaz\4z\coloured_middle_snapshot_16000000.lammpstrj"
+location = r"C:\Users\Szymek\Desktop\praca magisterska\dane\middle_snapshot_15000000.lammpstrj"
+target = r"C:\Users\Szymek\Desktop\praca magisterska\dane\coloured_snapshot_15000000.lammpstrj"
 
 axis = 'x'
 num_bananas = 528000
@@ -56,25 +58,10 @@ with open(location, "r") as f:
 
                 # if molecule is fully read then
                 if atom.id % 11 == 0:
-                    director = molecule.director()
-                    for element in molecule.comp:
-                        R, G, B = palette(director, colors, N)
-                        print(f"{element.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
-
-            else:
-                if atom.id % 10 == 1:
-                    molecule = sz.Molecule(atom.id//10 + 1, 10)
-                
-                molecule.add(atom)
-
-                # if molecule is fully read then
-                if atom.id % 10 == 0:
-                    director = molecule.director()
+                    director = molecule.polarization()
                     for element in molecule.comp:
                         R, G, B = palette(director, colors, N)
                         print(f"{element.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
 
             # if i > 1e7:
             #     break
-
-            # SPLIT INTO 10 AND 11 ATOM MOLECULES

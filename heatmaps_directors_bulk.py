@@ -22,7 +22,7 @@ import time
 #     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
 #     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
 # ]
-locations = ["G:/lammps dane/double_z/test_const_z_135/all_snapshots_0.3.lammpstrj"]
+locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
 # locations = ['G:/lammps dane/4z_local/4z_peter/all_snapshots_0.26.lammpstrj']
 # locations = [
 #     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
@@ -33,13 +33,13 @@ locations = ["G:/lammps dane/double_z/test_const_z_135/all_snapshots_0.3.lammpst
 
 NP = 10
 DIRECTOR_PERIODS = 1
-N_BATCH = 22
-BATCH_START = 10
+SIZE = mmap.ALLOCATIONGRANULARITY * 1000 * DIRECTOR_PERIODS
+BATCH_START = 150
+N_BATCH = 250
 # input bin size and side of simulation box
 x = 150
 z = 150
 plane = "xz"
-SIZE = mmap.ALLOCATIONGRANULARITY * 2000 * DIRECTOR_PERIODS
 
 
 def analyze_batch(n, location):
@@ -47,6 +47,9 @@ def analyze_batch(n, location):
     screen = sz.Screen(x, z, sz.DirectorPixel)
     screenshotDirector = sz.Screenshot(x, z, sz.DirectorPixel)
     screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
+
+    if n < BATCH_START:
+        return screen
 
     molecule = sz.Molecule(1, 11)
     C_left = 0 + 0j
