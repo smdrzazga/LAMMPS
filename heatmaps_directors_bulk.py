@@ -7,59 +7,43 @@ import mmap
 import time
 
 
+# locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
+locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
 
-# locations = [
-#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.307.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",    
-#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj"
-# ]
-locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
-# locations = ['G:/lammps dane/4z_local/4z_peter/all_snapshots_0.26.lammpstrj']
-# locations = [
-#     "G:/lammps dane/double_z/all_snapshots_0.312.lammpstrj",
-#     "G:/lammps dane/double_z/all_snapshots_0.32.lammpstrj",
-#       "G:/lammps dane/double_z/test_const_z_90/all_snapshots_0.298.lammpstrj"
-# ]
 
 
 NP = 10
+# input data and side of simulation box
+BATCH_START = 5
+BATCH_STOP = 8
 DIRECTOR_PERIODS = 1
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000 * DIRECTOR_PERIODS
-BATCH_START = 150
-N_BATCH = 250
-# input bin size and side of simulation box
+SIZE = mmap.ALLOCATIONGRANULARITY * 1000
+
+AT_WALL = False
+plane = "xz"
 x = 150
 z = 150
-plane = "xz"
 
 
-def analyze_batch(n, location):
-    box = sz.Simulation_box(*sz.read_boundaries(location), sz.read_number_of_atoms(location))
+def analyze_batch(n, location, N_ATOMS):
     screen = sz.Screen(x, z, sz.DirectorPixel)
     screenshotDirector = sz.Screenshot(x, z, sz.DirectorPixel)
     screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
-
-    if n < BATCH_START:
-        return screen
-
     molecule = sz.Molecule(1, 11)
+
     C_left = 0 + 0j
     C_right = 0 + 0j
     C = 0 + 0j
+
     with open(location, "r+") as f:
         data = mmap.mmap(f.fileno(), length = SIZE, offset = (n)*SIZE)
-        molecule = sz.Molecule(1, 11)
+
+        boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
+        box = sz.Simulation_box(*boundaries, N_ATOMS)
+
         while True:
-            # atom = sz.Atom( *read_atom(line).T)
             line = data.readline().decode()
 
             if not line:
@@ -67,11 +51,9 @@ def analyze_batch(n, location):
 
             # read atoms one by one from file 
             try:
-                # atom = sz.Atom( *line.strip().split() )
                 atom = sz.Atom( line.split()[0], *line.split()[-3:])
             except:
                 continue
-
 
             # create molecule every 11 atoms
             if atom.id % 11 == 1:
@@ -82,7 +64,6 @@ def analyze_batch(n, location):
             # if molecule is fully read then
             if len(molecule.comp) == molecule.atoms:
                 # translate molecule center back to simulation box 
-                # center = sz.Atom(atom.id, 'A', *molecule.center_of_mass())
                 center = sz.Atom(atom.id, *molecule.center_of_mass())
                 center = sz.wrap_atom_to_box(center, box)
         
@@ -93,13 +74,14 @@ def analyze_batch(n, location):
                 else:
                     C_right += molecule.polarization()[1] * np.exp(2j*DIRECTOR_PERIODS*np.pi * center.position[2] / box.z)
 
-                # if middle.position[0] < 5:
-                director = sz.Atom(molecule.id, *molecule.director())
-
-                # assign director to the bin corresponding to the position of middle atom of the molecule
-                pixel_position = screen.determine_pixel(center, box, plane)
-                screenshotDirector.assign(director, *pixel_position)
-                screenshotCenter.assign(center, *pixel_position)
+                # reject if center is not close to the wall, else add to screenshot
+                if not AT_WALL or (AT_WALL and center.position[0] < 5):
+                    # assign director to the bin corresponding to the position of middle atom of the molecule
+                    director = sz.Atom(molecule.id, *molecule.director())
+                    pixel_position = screen.determine_pixel(center, box, plane)
+    
+                    screenshotDirector.assign(director, *pixel_position)
+                    screenshotCenter.assign(center, *pixel_position)
 
 
             # if there is only one molecule remaining to read the full snapshot then execute following
@@ -123,11 +105,12 @@ def analyze_batch(n, location):
                 # print(screenshotDirector.avg_director())
                 # print(screen.avg_director())
 
-                # clear current screenshot and flow measuring number C
+                # clear current screenshot, box and flow measuring number C
+                boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
+                box = sz.Simulation_box(*boundaries, N_ATOMS)
                 screenshotDirector = sz.Screenshot(x, z, sz.DirectorPixel)
                 screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
                 C, C_left, C_right = 0. + 0.j, 0. + 0.j, 0. + 0.j
-
 
     print(f"Task is done!: {n}")
     return screen
@@ -159,23 +142,21 @@ def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 
 
 
 
-
 if __name__ == '__main__':
 
     for location in locations:
+        N_ATOMS = sz.read_number_of_atoms(location)
+        N_BATCH = BATCH_STOP - BATCH_START
+        screen = sz.Screen(x, z, sz.DirectorPixel)
+
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
         screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
 
-        screen = sz.Screen(x, z, sz.DirectorPixel)
         t1 = time.time()
         with Pool(NP) as executor:
-            i = 0
-            for result in executor.starmap(analyze_batch, zip([i for i in range(N_BATCH)], [location]*N_BATCH)):
-            # for result in executor.starmap(analyze_batch, [(locations[0], i) for i in range(N_BATCH)]):
-                i += 1
-                if i < BATCH_START: 
-                    continue
+            args = zip([i for i in range(BATCH_START, BATCH_STOP)], [location]*N_BATCH, [N_ATOMS]*N_BATCH)
+            for result in executor.starmap(analyze_batch, args):
                 screen.append_screenshot(result)
 
         with open(screen_file, "w+") as t:
@@ -186,6 +167,9 @@ if __name__ == '__main__':
             print(screen, end='', file=t)
             print("Finished! Yay!")
 
+        t2 = time.time()
+        print(f"Time elapsed: {t2 - t1}")
+        print("Bye bye, heatmap!")
 
     # screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
     # create_scatter(screen, screen_file, start=4, end=9)
@@ -196,7 +180,3 @@ if __name__ == '__main__':
 
     #     create_scatter(screen, screen_file, start=start, end=end, new_file=False)
     #     print("Bye bye, heatmap!")
-
-        
-
-# 39, 46

@@ -3,6 +3,7 @@ import numpy as np
 import functools
 from scipy.sparse.linalg import eigsh
 import scipy.sparse.linalg
+from mmap import mmap
 
 def is_molecule_torn(molecule, axis: str) -> bool:
     
@@ -71,29 +72,44 @@ def write_heading(target: str, n: int, trim) -> None:
         t.write("Atoms \n\n")
 
 
+def get_line(file, is_mmap):
+    line = file.readline()
+    if is_mmap:
+        line = line.decode()
+    line = line.split()
 
-def read_boundaries(file: str) -> tuple[float, float, float, float, float, float]:
+    return line
 
-    i = 0    
-    with open (file, "r") as f:
-        for line in f:
-            
-            i += 1
-            if i == 6:
-                x_min = float(line.strip().split()[0])
-                x_max = float(line.strip().split()[1])
-                continue
-            if i == 7:
-                y_min = float(line.strip().split()[0])
-                y_max = float(line.strip().split()[1])
-                continue    
-            if i == 8:
-                z_min = float(line.strip().split()[0])
-                z_max = float(line.strip().split()[1])
-                continue    
+def read_boundaries(file: str|mmap, N_TOTAL, open=True, is_mmap=False) -> tuple:
+    if open:
+        file = open(file, 'r+')
 
-            if i > 10: 
-                return x_min, x_max, y_min, y_max, z_min, z_max
+    i = 0
+    line = get_line(file, is_mmap)
+                    
+    while len(line) < 2 or line[1] != 'BOX':
+        i += 1
+        line = get_line(file, is_mmap)
+
+        if not line:
+            return (0, 0, 0, 0, 0, 0)
+
+        if i > N_TOTAL:
+            raise Exception("Box dimensions not found!")
+    
+    l = file.readline().strip().split()
+    x_min, x_max = float(l[0]), float(l[1])
+    
+    l = file.readline().strip().split()
+    y_min, y_max = float(l[0]), float(l[1])
+    
+    l = file.readline().strip().split()
+    z_min, z_max = float(l[0]), float(l[1])
+
+    if open:
+        file.close()
+
+    return (x_min, x_max, y_min, y_max, z_min, z_max)
 
 
 def read_number_of_atoms(location: str) -> int:
