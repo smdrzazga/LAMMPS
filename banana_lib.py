@@ -124,29 +124,6 @@ class BatchReader:
         return line_split[3] == 'ATOMS'
 
 
-class Atom:
-    volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
-
-    def __init__(self, id: int, x: float, y: float, z: float, type="A") -> None:
-        self.id = int(id)
-        self.type = type
-        self.position = np.array([float(x), float(y), float(z)])
-
-    def __repr__(self) -> str:
-        return f"{self.id} | {self.type} | {self.position}"
-
-    def is_center(self) -> bool:
-        _center_id = 6
-        _atoms_in_molecule = 11
-        if int(self.id) % _atoms_in_molecule == _center_id:
-            return True
-        else:
-            return False
-    
-    def get_position(self):
-        return self.position
-
-
 class SimulationBox:
     def __init__(self, x_min, x_max, y_min, y_max, z_min, z_max, n_atoms) -> None:
         self.min = np.array([x_min, y_min, z_min], dtype=np.float32)
@@ -164,90 +141,91 @@ class SimulationBox:
     def get_side_length(self, i) -> float:
         return self.size[i]
 
+
+class Atom:
+    volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
+
+    def __init__(self, id: int, position: list, type=1) -> None:
+        self.id = int(id)
+        self.type = type
+        self.position = np.array(position, dtype=np.float32)
+
+    def __repr__(self) -> str:
+        return f"{self.id} | {self.type} | {self.position}"
+
+
 class Molecule:
     def __init__(self, id: int, num_atoms: int) -> None:
         self.id = id   
         self.comp = []
         self.atoms = num_atoms
 
-    def center(self) -> Atom:
+    def add(self, atom: Atom) -> None:
+        self.comp.append(atom)
+
+    def center_atom(self) -> Atom:
         return self.comp[self.atoms//2]
 
-
     def center_of_mass(self) -> list:
-        if len(self.comp) != self.atoms:
-            raise Exception("Error: molecule not fully read." )
-
         com = np.zeros(3)
-
         for i in range(self.atoms):
             com += self.comp[i].position
-            
         return com / self.atoms
 
+    def is_molecule_full(self) -> bool:
+        return len(self.comp) == self.atoms
 
-    def polarization(self) -> None:
-        return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
+    def set_position(self, position: list) -> None:
+        mid = self.center_of_mass()
+        for i in range(len(self.comp)):     
+            self.comp[i].position += position - mid
 
+    def shift(self, displacement: list) -> None:
+        for i in range(len(self.comp)):     
+            self.comp[i].position += displacement
 
-    def shift(self, x: float, y: float, z: float) -> None:
-        m = self.atoms // 2
-        mid = np.array([self.comp[m].position[0], self.comp[m].position[1], self.comp[m].position[2] ])
-        for i in range(self.atoms):     
-            self.comp[i].position[0] -= mid[0] - x
-            self.comp[i].position[1] -= mid[1] - y
-            self.comp[i].position[2] -= mid[2] - z
-
-
-    def rotate_x(self, theta: float) -> None:
-        # change degrees to radians
-        theta *= ( np.pi / 180 )
+    def rotate_x(self, theta_deg: float) -> None:
+        theta = theta_deg * np.pi/180
         for i in range(self.atoms):
             temp_y = self.comp[i].position[1]
             temp_z = self.comp[i].position[2]
             
-            # self.comp[i].x = self.comp[i].x 
             self.comp[i].position[1] = temp_y * np.cos(theta) - temp_z * np.sin(theta)
             self.comp[i].position[2] = temp_y * np.sin(theta) + temp_z * np.cos(theta)
 
-
-    def rotate_y(self, theta: float) -> None:
-        # change degrees to radians
-        theta *= ( np.pi / 180 )
+    def rotate_y(self, theta_deg: float) -> None:
+        theta = theta_deg * np.pi/180
         for i in range(self.atoms):
             temp_x = self.comp[i].position[0]
             temp_z = self.comp[i].position[2]
 
             self.comp[i].position[0] = temp_x * np.cos(theta) + temp_z * np.sin(theta)
-            # self.comp[i].y = self.comp[i].y 
             self.comp[i].position[2] = -1 * temp_x * np.sin(theta) + temp_z * np.cos(theta)
 
     def rotate_z(self, phi: float) -> None:        
-        # change degrees to radians
         phi *= ( np.pi / 180 )
         for i in range(self.atoms):
             temp_x = self.comp[i].position[0]
             temp_y = self.comp[i].position[1]
             
             self.comp[i].position[0] = temp_x * np.cos(phi) - temp_y * np.sin(phi)
-            self.comp[i].position[1] = temp_x * np.sin(phi) + temp_y * np.cos(phi)
-            # self.comp[i].z = self.comp[i].z 
+            self.comp[i].position[1] = temp_x * np.sin(phi) + temp_y * np.cos(phi)     
 
 
-    def print(self) -> None:
-        for i in range(Molecule.atoms):
-            print(f"{self.comp[i].position}")
-        
+class Banana(Molecule):
+    def __init__(self, id: int, num_atoms: int) -> None:
+        super().__init__(id, num_atoms)
 
     def director(self) -> list:
         director = self.comp[-1].position - self.comp[0].position
         director /= np.linalg.norm(director)
-        
         return director
 
+    def polarization(self) -> None:
+        middle_atom = self.comp[self.atoms//2].position
+        average = (self.comp[-1].position + self.comp[0].position) / 2
+        return middle_atom - average
 
-    def add(self, atom: Atom) -> None:
-        self.comp.append(atom)
 
 class Rescale:
     def __init__(self, current_packing_fraction: float, target_packing_fraction: float) -> None:
@@ -258,23 +236,6 @@ class Rescale:
     target_volume = 1
     current_volume = 1
     factor = 1
-
-
-class Line:
-    def __init__(self, id: int, type: str, x: float, y: float, z: float) -> None:
-        self.id = int(id)
-        self.type = type
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z) 
-    
-    def is_center(self) -> bool:
-        _center_id = 6
-        _atoms_in_molecule = 11
-        if int(self.id) % _atoms_in_molecule == _center_id:
-            return True
-        else:
-            return False
 
 
 class Pixel:
@@ -571,6 +532,9 @@ class VerticalSlice(Screen):
             raise Exception("Pixel has to be Director Pixel")
 
         return self.component.local_director()
+    
+    def get_local_director(self):
+        return self.component.local_director()
 
 
 class SmecticParameter():
@@ -586,7 +550,6 @@ class SmecticParameter():
     def add_atom(self, center_coords: list, box: SimulationBox) -> None:
         self.parameter += np.exp(self.periods * 2*np.pi*1j * center_coords[-1] / box.z)
         self.count += 1
-        # print(np.exp(2*np.pi*1j * center[-1] / box.z))
 
     def normalize(self) -> None:
         if self.count != 0:
@@ -594,17 +557,12 @@ class SmecticParameter():
     
     def read_screen(self, screen: Screen, start: int, end: int) -> None:
         HARD_CODED_LIMIT = 0
-        # HARD_CODED_LIMIT = int((self.periods % 1.0) * screen.y / self.periods)
-        # print(HARD_CODED_LIMIT, screen.y)
 
         for x in range(start, end):
-        # for x in range(start, start+1):
             for y in range(HARD_CODED_LIMIT, screen.y):
-                # for coords in screen.screen[y][x].components:
-                #     self.add_atom(coords, box)
                 self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
                 self.count += screen.screen[y][x].colour()
-                # print(self)
+
 
 def read_matrix(file: str, n_slices: float, n_periods: int) -> list:
     list_of_params = np.zeros(n_slices, dtype=np.complex128)
