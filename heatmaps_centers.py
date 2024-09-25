@@ -7,18 +7,18 @@ import mmap
 import time
 
 
-# locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
+locations = ["G:/lammps dane/npt/d_0.305/p_0.92_3x/all_snapshots_0.305.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
-locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
 
 
 NP = 10
 # input data and side of simulation box
-BATCH_START = 5
-BATCH_STOP = 8
-DIRECTOR_PERIODS = 1
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000
+BATCH_START = 40
+BATCH_STOP = 80
+DIRECTOR_PERIODS = 2
+SIZE = mmap.ALLOCATIONGRANULARITY * 2000
 
 AT_WALL = False
 plane = "xz"
@@ -39,7 +39,7 @@ def analyze_batch(n, location, N_ATOMS):
         data = mmap.mmap(f.fileno(), length = SIZE, offset = (n)*SIZE)
 
         boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
-        box = sz.Simulation_box(*boundaries, N_ATOMS)
+        box = sz.SimulationBox(*boundaries, N_ATOMS)
 
         while True:
             line = data.readline().decode()
@@ -96,7 +96,7 @@ def analyze_batch(n, location, N_ATOMS):
 
                 # clear current screenshot, box and number C measuring flow 
                 boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
-                box = sz.Simulation_box(*boundaries, N_ATOMS)
+                box = sz.SimulationBox(*boundaries, N_ATOMS)
                 screenshot = sz.Screenshot(x, z, sz.CenterPixel)
                 C_left = 0 + 0j
                 C_right = 0 + 0j

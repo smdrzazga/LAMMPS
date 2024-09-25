@@ -1,51 +1,19 @@
 from math import sqrt
+import os
 import numpy as np
 import functools
 from scipy.sparse.linalg import eigsh
 import scipy.sparse.linalg
 from mmap import mmap
 
-def is_molecule_torn(molecule, axis: str) -> bool:
-    
-    is_torn = 0
-    if(axis == 'x'):
-        for i in range(len(molecule)-1):
-            if abs(molecule[i].x - molecule[i+1].x ) > 10:
-                is_torn = 1    
 
 
-    if(axis == 'y'):
-        for i in range(len(molecule)-1):
-            if abs(molecule[i].y - molecule[i+1].y ) > 10:
-                is_torn = 1    
-
-    if(axis == 'z'):
-        for i in range(len(molecule)-1):
-            if abs(molecule[i].z - molecule[i+1].z ) > 10:
-                is_torn = 1    
-
-    return is_torn
-
-
-def sew_molecule(molecule, x_box: float, y_box: float, z_box: float) -> None:
-    # check whether whole 11 atom molecule is read
-    if len(molecule.comp) != 11: 
-        return 
-
-    # sewing back torn atoms by moving them box size in positive direction  
-    if is_molecule_torn(molecule.comp, "x") == 1: 
-        for j in range(11):
-            if molecule.comp[j].x < 10:
-                molecule.comp[j].x += x_box
-    if is_molecule_torn(molecule.comp, "y") == 1: 
-        for j in range(11):    
-            if molecule.comp[j].y < 10:
-                molecule.comp[j].y += y_box
-    if is_molecule_torn(molecule.comp, "z") == 1: 
-        for j in range(11):                
-            if molecule.comp[j].z < 10:
-                molecule.comp[j].z += z_box    
-
+def scale(target_volume: float, current_volume: float, num_walls: int) -> float:
+    # calculate ratio between current and new box edges lengths
+    if num_walls < 3:
+        return pow(target_volume / current_volume, 1 / (3 - num_walls))
+    if num_walls == 3:    
+        return 1
 
 def write_heading(target: str, n: int, trim) -> None:
     
@@ -72,118 +40,93 @@ def write_heading(target: str, n: int, trim) -> None:
         t.write("Atoms \n\n")
 
 
-def get_line(file, is_mmap):
-    line = file.readline()
-    if is_mmap:
-        line = line.decode()
-    line = line.split()
 
-    return line
+class DataChunk:
+    chunk_size = 0
+    def __init__(self, location, nth_Chunk) -> None:
+        self.location = location
+        self.ID = nth_Chunk
 
-def read_boundaries(file: str|mmap, N_TOTAL, open=True, is_mmap=False) -> tuple:
-    if open:
-        file = open(file, 'r+')
-
-    i = 0
-    line = get_line(file, is_mmap)
-                    
-    while len(line) < 2 or line[1] != 'BOX':
-        i += 1
-        line = get_line(file, is_mmap)
-
-        if not line:
-            return (0, 0, 0, 0, 0, 0)
-
-        if i > N_TOTAL:
-            raise Exception("Box dimensions not found!")
+    def get_offset(self):
+        return self.ID * self.get_size()
     
-    l = file.readline().strip().split()
-    x_min, x_max = float(l[0]), float(l[1])
+    def get_ID(self):
+        return self.ID
     
-    l = file.readline().strip().split()
-    y_min, y_max = float(l[0]), float(l[1])
+    def get_size(self):
+        global NP        
+        file_stats = os.stat(self.location)
+        file_size = file_stats.st_size
+        return file_size // NP
     
-    l = file.readline().strip().split()
-    z_min, z_max = float(l[0]), float(l[1])
-
-    if open:
-        file.close()
-
-    return (x_min, x_max, y_min, y_max, z_min, z_max)
-
-
-def read_number_of_atoms(location: str) -> int:
-    with open(location, "r") as f:
-        i = 0
-        for lines in f:
-            i += 1
-            if i == 4 :
-                return int(lines.strip().split()[0])
-            else:
-                continue
-
-
-
-
-def find_max(file: str, coord: str) -> float:
+    def get_location(self):
+        return self.location
     
-    max = 0.
-    rows = {"x": 3, "y": 4, "z": 5}
-    i = 0
+    
 
-    with open (file, "r") as f:
-        for line in f:
+class BatchReader:
+    def __init__(self, data_chunk: DataChunk) -> None:
+        self.chunk = data_chunk
+        self.file = None
 
-            i += 1
+    def __del__(self):
+        if self.file is not None:
+            self.close()
 
-            # skip headline
-            if i < 30: 
-                continue
+    def open(self):
+        f = open(self.chunk.get_location(), 'r+')
+        self.file = mmap.mmap(f.fileno(), length=self.chunk.get_size(), offset=self.chunk.get_offset())
+
+    def close(self):
+        self.file.close()
+
+    def get_line(self):
+        return self.file.readline().decode()
+
+    def get_line_split(self):
+        return self.get_line().split()
+
+    def read_boundaries(self) -> list:
+        line = self.get_line()
+                        
+        while not self.is_box_header(line):
+            line = self.get_line()
         
-            # compare x coordinate
-            l = line.strip().split()
-            x = float(l[rows[coord]])
-
-            if (max < x):
-                max = x
-
-    return max
-
-
-def find_min(file: str, coord: str) -> float:
-    
-    min = 1000.
-    rows = {"x": 3, "y": 4, "z": 5}
-    i = 0
-
-    with open (file, "r") as f:
-        for line in f:
-
-            i += 1
-
-            # skip headline
-            if i < 30: 
-                continue
+        l = self.get_line_split()
+        x_min, x_max = np.array(l, dtype=np.float32)
         
-            # compare x coordinate
-            l = line.strip().split()
-            x = float(l[rows[coord]])
+        l = self.get_line_split()
+        y_min, y_max = np.array(l, dtype=np.float32)
+        
+        l = self.get_line_split()
+        z_min, z_max = np.array(l, dtype=np.float32)
 
-            if (x < min):
-                min = x
+        return [x_min, x_max, y_min, y_max, z_min, z_max]
 
-    return min
+    def read_number_of_atoms(self):
+        self.open()
+        line_split = self.get_line_split()
+        
+        while not self.is_atoms_number_header(line_split):
+            line_split = self.get_line_split()
+        atom_number_line = self.get_line_split()
 
+        return int(atom_number_line.strip()[0])
 
-def scale(target_volume: float, current_volume: float, num_walls: int) -> float:
-    # calculate ratio between current and new box edges lengths
-    if num_walls < 3:
-        return pow(target_volume / current_volume, 1 / (3 - num_walls))
-    if num_walls == 3:    
-        return 1
+    def is_box_header(self, line_split):
+        if len(line_split) < 2:
+            return False
+        return line_split[1] == 'BOX'
+                
+    def is_atoms_number_header(self, line_split):
+        if len(line_split) < 4:
+            return False
+        return line_split[3] == 'ATOMS'
 
 
 class Atom:
+    volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
+
     def __init__(self, id: int, x: float, y: float, z: float, type="A") -> None:
         self.id = int(id)
         self.type = type
@@ -200,28 +143,26 @@ class Atom:
         else:
             return False
     
-    volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
+    def get_position(self):
+        return self.position
 
 
-class Vector:
-    def __init__(self, x: float, y: float, z: float) -> None:
-        self.x = x
-        self.y = y
-        self.z = z
+class SimulationBox:
+    def __init__(self, x_min, x_max, y_min, y_max, z_min, z_max, n_atoms) -> None:
+        self.min = np.array([x_min, y_min, z_min], dtype=np.float32)
+        self.max = np.array([x_max, y_max, z_max], dtype=np.float32)
+        self.size = np.array([x_max - x_min, y_max - y_min, z_max - z_min], dtype=np.float32)
 
-
-class Simulation_box:
-    def __init__(self, x_min: float, x_max: float, y_min: float, y_max: float, z_min: float, z_max: float, atoms: int) -> None:
-        self.min = Vector(x_min, y_min, z_min)
-        self.max = Vector(x_max, y_max, z_max)
-        self.x = x_max - x_min
-        self.y = y_max - y_min
-        self.z = z_max - z_min
-
-        self.atoms = atoms
+        self.atoms = int(n_atoms)
         self.mols = 1
 
-        self.volume = self.x * self.y * self.z
+        self.volume = np.prod(self.size)
+
+    def get_all_side_lengths(self) -> list:
+        return self.size
+
+    def get_side_length(self, i) -> float:
+        return self.size[i]
 
 class Molecule:
     def __init__(self, id: int, num_atoms: int) -> None:
@@ -251,11 +192,11 @@ class Molecule:
 
     def shift(self, x: float, y: float, z: float) -> None:
         m = self.atoms // 2
-        mid = Vector(self.comp[m].position[0], self.comp[m].position[1], self.comp[m].position[2] )
+        mid = np.array([self.comp[m].position[0], self.comp[m].position[1], self.comp[m].position[2] ])
         for i in range(self.atoms):     
-            self.comp[i].position[0] -= mid.x - x
-            self.comp[i].position[1] -= mid.y - y
-            self.comp[i].position[2] -= mid.z - z
+            self.comp[i].position[0] -= mid[0] - x
+            self.comp[i].position[1] -= mid[1] - y
+            self.comp[i].position[2] -= mid[2] - z
 
 
     def rotate_x(self, theta: float) -> None:
@@ -313,7 +254,7 @@ class Rescale:
         self.current_packing_fraction = current_packing_fraction
         self.target_packing_fraction = target_packing_fraction
 
-    target_box = Vector(1, 1, 1)
+    target_box = np.array([1, 1, 1])
     target_volume = 1
     current_volume = 1
     factor = 1
@@ -417,17 +358,21 @@ class DirectorPixel(Pixel):
     
 
 class Screen:
-    def __init__(self, x: int, y: int, pixel_class: Pixel) -> None:
-        self.x = x
-        self.y = y
-        self.screen = [[pixel_class() for j in range(x)] for i in range(y)]
+    def __init__(self, size: list, pixel_class: Pixel) -> None:
+        self._assert_size_dimension(size, 2)
+        self.size = np.array(size)
+        self.screen = [[pixel_class() for j in range(size[0])] for i in range(size[1])]
+
+    def _assert_size_dimension(self, size, expected):
+        if len(size) != expected:
+            return Exception("Screen size should have 2 values: horizontal & vertical!")
 
     def __repr__(self) -> str:
         z = 0.5
         data = str()
         for i in range(self.y):
             for j in range(self.x):
-                pos = f"{z} {i/self.y} {j/self.x} " # z,y,x coords of pixel, 
+                pos = f"{z} {i/self.size[1]} {j/self.size[0]} " # z,y,x coords of pixel, 
                 n = f"{len(self.screen[i][j].components)} "
                 colour = f"{self.screen[i][j].colour()} "
                 pix = pos + n + colour + '\n'
@@ -436,42 +381,8 @@ class Screen:
 
         return data
 
-
-    def determine_pixel(self, atom: Atom, box: Simulation_box, plane='xz') -> tuple[int, int]:
-        # prepare data from proper directions for further processing 
-        match plane:
-            case "xz":
-                box1 = box.x
-                box2 = box.z
-                atom_position1 = atom.position[0]
-                atom_position2 = atom.position[2]
-
-            case "xy":
-                box1 = box.x; box2 = box.y
-                atom_position1 = atom.position[0]
-                atom_position2 = atom.position[1]
-        
-            case "yz":
-                box1 = box.y
-                box2 = box.z
-                atom_position1 = atom.position[1]
-                atom_position2 = atom.position[2]
-    
-        # determine size of single pixel in the same units as box' length
-        self._bin_size_1 = box1 / self.x
-        self._bin_size_2 = box2 / self.y
-        
-        # compute which pixel corresponds to molecules position
-        bin1 = int(atom_position1 // self._bin_size_1)
-        bin2 = int(atom_position2 // self._bin_size_2)
-
-        # handle exceptions (molecule center does not have to be inside box even when middle atom is inside)
-        if bin1 >= self.x: bin1 = self.x - 1
-        if bin2 >= self.y: bin2 = self.y - 1
-        if bin1 < 0: bin1 = 0
-        if bin2 < 0: bin2 = 0
-
-        return bin1, bin2
+    def get_size_in_pixels(self):
+        return self.size        
 
     def assign(self, atom: Atom, x: float, y: float) -> None:
         self.screen[y][x].assign(atom)
@@ -511,7 +422,7 @@ class Screenshot(Screen):
         super().__init__(x, y, pixel_class)
 
 
-    def pixels_to_scroll(self, pixel_num: int, box: Simulation_box, drift: float) -> int:
+    def pixels_to_scroll(self, pixel_num: int, box: SimulationBox, drift: float) -> int:
         # determine numer of pixels that the image should be scrolled in order to get smectic interferences at the same place
         return int(pixel_num * drift / box.z)
     
@@ -552,6 +463,68 @@ class Screenshot(Screen):
             self.screen = self.screen[pixels_to_scroll:] + self.screen[:pixels_to_scroll]
         else:
             raise Exception(f"Side can be 'l' or 'r' or 'both'!")
+
+
+class AtomBinner:
+    _indice_map = {'x': 0, 'y': 1, 'z': 2}
+    plane = ''
+
+    def __init__(self, sim_box: SimulationBox, screen_size_in_pixels: list, view_plane='xz') -> None:
+        self.plane = view_plane
+        self.box = sim_box
+        self.screen_size_in_pixels = np.array([screen_size_in_pixels])
+
+    def determine_pixel(self, atom: Atom):
+        box_size = self._get_box_size_from_viewing_plane()
+        atom_position = self._get_atom_position_from_viewing_plane(atom)
+
+        pixel_size = self._compute_pixel_size(box_size)
+        pixel_coords = self._translate_atom_to_pixel(atom_position, pixel_size)
+        pixel_coords = self._assign_outer_atoms_to_borders(pixel_coords)
+
+        return pixel_coords
+    
+
+    def _get_box_size_from_viewing_plane(self):
+        i, j = self._plane_to_coord_indices(self.plane)
+        box_size = np.array([self.box.get_side_length(i), self.box.get_side_length(j)])
+
+        return box_size
+
+    def _get_atom_position_from_viewing_plane(self, atom: Atom):
+        i, j = self._plane_to_coord_indices(self.plane)
+        atom_position = np.array([atom.position[i], atom.position[j]])
+
+        return atom_position
+    
+    def _plane_to_coord_indices(self, plane: str):        
+        i = self._indice_map[plane[0]]
+        j = self._indice_map[plane[1]]
+
+        return i, j
+
+    def _compute_pixel_size(self, box_size):
+        pixel_size = box_size / self.screen_size_in_pixels
+
+        return pixel_size
+
+    def _translate_atom_to_pixel(self, atom_position, pixel_size):
+        pixel_coords = np.array(atom_position // pixel_size, dtype=np.int32)
+
+        return pixel_coords
+
+    def _assign_outer_atoms_to_borders(self, pixel_coords):
+        print(f"DEBUG: pixel coords before: {pixel_coords}\n")
+        for i, pixel_coord in enumerate(pixel_coords):
+            if pixel_coord >= self.screen_size_in_pixels[i]:
+                pixel_coords[i] = self.screen_size_in_pixels[i] - 1
+            elif pixel_coord < 0:
+                pixel_coords[i] = 0
+            else:
+                pass
+
+        print(f"DEBUG: pixel coords after: {pixel_coords}\n")
+        return pixel_coords
 
 
 class HorizontalSlice(Screen):
@@ -610,7 +583,7 @@ class SmecticParameter():
        return f"{np.abs(self.parameter):.3f} | {self.count}"
 
     # only for vertical slices in y-z plane!
-    def add_atom(self, center_coords: list, box: Simulation_box) -> None:
+    def add_atom(self, center_coords: list, box: SimulationBox) -> None:
         self.parameter += np.exp(self.periods * 2*np.pi*1j * center_coords[-1] / box.z)
         self.count += 1
         # print(np.exp(2*np.pi*1j * center[-1] / box.z))
@@ -656,7 +629,7 @@ def read_matrix(file: str, n_slices: float, n_periods: int) -> list:
     return list_of_params
 
 
-def wrap_atom_to_box(atom: Atom, box: Simulation_box) -> Atom:
+def wrap_atom_to_box(atom: Atom, box: SimulationBox) -> Atom:
     atom.position[0] = atom.position[0] % box.x
     atom.position[1] = atom.position[1] % box.y
     atom.position[2] = atom.position[2] % box.z

@@ -17,16 +17,16 @@ for i in range(molecule.atoms):
 
 # box needs to be inflated in order to achieve target packing fraction
 # initial size of the simulation box
-x = 140
+x = 200
 y = 34
-z = 160
-packingFractionEnd = 0.300
+z = 125
+packingFractionEnd = 0.320
 N_WALLS = 2     # REMEMBER ABOUT SETTING SCALE OF FINAL_BOX
-N_MOLS_PER_PERIOD = 8
+N_MOLS_PER_PERIOD = 6
 # IF THERE IS A PROBLEM WITH COLLAPSED MOLECULES INTO A PLANE - CHECK ATOM CONSTRUCTOR
 
 # computing final box volume from target packing fraction and volume of all molecules
-grid = sz.Vector(120, 25, 16)
+grid = sz.Vector(180, 25, 12)
 volBoxStart = x * y * z
 volAtoms =  grid.x*grid.y*grid.z * molecule.atoms * sz.Atom.volume
 packingFractionStart = volAtoms / volBoxStart
