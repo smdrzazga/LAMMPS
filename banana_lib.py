@@ -242,18 +242,20 @@ class Pixel:
     def __init__(self) -> None:
         self.components = []
 
+    def _get_components(self):
+        return self.components
+    
+    def num_elements(self):
+        return len(self.components)
+
     def assign(self, atom: Atom) -> None:
         self.components.append(atom.position)
 
     def mean(self) -> float:
-        # mean = functools.reduce(lambda x,y: x+y, self.components) / len(self.components)
-        
         mean = 0
-        # check for zero-division
         if len(self.components) > 0:
             mean = np.mean(self.components, axis=0)
             mean /= len(self.components)
-
         return mean
     
     def colour(self) -> float:
@@ -261,6 +263,10 @@ class Pixel:
 
     def merge_pixels(self, new_pixel) -> None:
         self.components.extend(new_pixel.components)
+
+    def print(self):
+        for atom in self.components:
+            print(atom)
 
 
 class CenterPixel(Pixel):
@@ -296,26 +302,20 @@ class DirectorPixel(Pixel):
         return eigenvector
 
 
-    def P2Value(self, direc=[1,1,1], trunc=True) -> float:
+    def P2Value(self, direc=[1,1,1]) -> float:
         direction = np.array(direc) / np.linalg.norm(np.array(direc))
 
-        # if pixel is empty then return any value
         if len(self.components) == 0:
             return 0
         
-        # Legendre 2nd polynomial with respect to dot product (cosine) between average pixel vector and provided direction
         p2value = 0.5 * (3 * ( np.dot(self.local_director(), direction) )**2 - 1)
-
-        if trunc:
-            # rescale P2Value from -0.5 to 1, to range 0 to 1
-            p2value = (p2value + 0.5) / 1.5 
+        p2value = (p2value + 0.5) / 1.5 
 
         return p2value
     
     def colour(self) -> str:
         # return self.P2Value()
         return self.local_director()[1]
-        # return f"{self.local_director()[0]} {self.local_director()[1]} {self.local_director()[2]}"
     
 
 class Screen:
@@ -328,50 +328,65 @@ class Screen:
         if len(size) != expected:
             return Exception("Screen size should have 2 values: horizontal & vertical!")
 
+    def get_size_in_pixels(self):
+        return self.size        
+    
+    def get_pixel(self, x, y):
+        return self.screen[y][x]
+    
+    def get_row(self, i):
+        return self.screen[i]
+    
     def __repr__(self) -> str:
         z = 0.5
         data = str()
-        for i in range(self.y):
-            for j in range(self.x):
-                pos = f"{z} {i/self.size[1]} {j/self.size[0]} " # z,y,x coords of pixel, 
-                n = f"{len(self.screen[i][j].components)} "
-                colour = f"{self.screen[i][j].colour()} "
+        x, y = self.get_size_in_pixels()
+        for i in range(x):
+            for j in range(y):
+                pos = f"{z} {j/y} {i/x} "
+                n = f"{self.get_pixel(i,j).num_elements()} "
+                colour = f"{self.get_pixel(i,j).colour()} "
                 pix = pos + n + colour + '\n'
 
-                data = data + pix
-
+                data += pix
         return data
-
-    def get_size_in_pixels(self):
-        return self.size        
+    
+    def get_slice(self, range: list[list]):
+        slice = np.array(range)
+        return self.screen[slice[1,0] : slice[1,1]][slice[0,0]:slice[0,1]]
 
     def assign(self, atom: Atom, x: float, y: float) -> None:
-        self.screen[y][x].assign(atom)
+        self.get_pixel(x,y).assign(atom)
 
     def append_screenshot(self, screenshot: list) -> None:
-        for i in range(self.y):
-            for j in range(self.x):
-                self.screen[i][j].merge_pixels(screenshot.screen[i][j])
+        x, y = self.get_size_in_pixels()
+        for i in range(x):
+            for j in range(y):
+                self.get_pixel(i,j).merge_pixels(screenshot.get_pixel(i,j))
     
     def colour(self) -> list[list]:
-        colour = np.zeros((self.x, self.y))
-
-        for i in range(self.y):
-            for j in range(self.x):
-                colour[i, j] = self.screen[i][j].colour()
+        colour = np.zeros(self.size)
+        x, y = self.get_size_in_pixels()
+        for i in range(x):
+            for j in range(y):
+                colour[i, j] = self.get_pixel(i,j).colour()
 
         return colour
 
     def avg_director(self) -> list:
-        if not isinstance(self.screen[0][0], DirectorPixel):
-            raise Exception("Pixel has to be Director Pixel")
-
+        try: 
+            self._compute_avg_director()
+        except:
+            raise TypeError("Pixel has to be an instance of Director Pixel")
+    
+    def _compute_avg_director(self) -> list:
         Q = np.zeros((3,3))
-        for i in range(self.y):
-            for j in range(self.x):
-                Q += self.screen[i][j].Q()
+        x, y = self.get_size_in_pixels()
+        for i in range(x):
+            for j in range(y):
+                Q += self.get_pixel(i,j).Q()
 
-        Q /= (self.x * self.y)**2
+        Q /= (np.prod(self.size))**2
         _, avg_director = scipy.sparse.linalg.eigsh(Q, k=1, which="LA")
         avg_director = np.reshape(avg_director, -1)
 
@@ -379,51 +394,48 @@ class Screen:
 
 
 class Screenshot(Screen):
-    def __init__(self, x: int, y: int, pixel_class: Pixel) -> None:
-        super().__init__(x, y, pixel_class)
-
+    def __init__(self, size: list, pixel_class: Pixel) -> None:
+        super().__init__(size, pixel_class)
 
     def pixels_to_scroll(self, pixel_num: int, box: SimulationBox, drift: float) -> int:
-        # determine numer of pixels that the image should be scrolled in order to get smectic interferences at the same place
-        return int(pixel_num * drift / box.z)
+        return (pixel_num * drift) // box.get_side_length(2)
+
+    def scroll_right_side(self, pixels_to_scroll: int) -> None:
+        L = self._get_slice_left()
+        R = self._get_slice_right()
+        R = self._scroll_list(R, pixels_to_scroll)
+
+        x, _ = self.get_size_in_pixels()
+        for i in range(x):
+            self.screen[i] = L[i] + R[i]
+
+    def scroll_left_side(self, pixels_to_scroll: int) -> None:
+        middle = self.get_size_in_pixels()[0] // 2
+        
+        L = self.get_slice([[None, middle], [None, None]])
+        R = self.get_slice([[middle, None], [None, None]])
+        L = self._scroll_list(L, pixels_to_scroll)
+
+        x, _ = self.get_size_in_pixels()
+        for i in range(x):
+            self.screen[i] = L[i] + R[i]
+        
+    def scroll_both_sides(self, pixels_to_scroll: int) -> None:
+        lower_part = self.get_slice([[None, None], [pixels_to_scroll, None]])
+        upper_part = self.get_slice([[None, None], [None, pixels_to_scroll]])
+        self.screen = lower_part + upper_part
     
+    def _get_slice_left(self):
+        middle = self.get_size_in_pixels()[0] // 2
+        return self.get_slice([[None, middle], [None, None]])
+
+    def _get_slice_right(self):
+        middle = self.get_size_in_pixels()[0] // 2
+        return self.get_slice([[middle, None], [None, None]])
     
-    def scroll(self, pixels_to_scroll: int, side="both") -> None:
-        # scrolling as slicing screenshot into two pieces and changing their order 
-        if side == 'r':
-            middle = self.x//2
-
-            # split screenshot into left and right halfs
-            L, R = [], []
-            for i in range(self.x):
-                L.append(self.screen[i][:middle])
-                R.append(self.screen[i][middle:])
-            
-            # scroll right-hand-side of the screenshot
-            R = R[pixels_to_scroll:] + R[:pixels_to_scroll]
-
-            for i in range(self.x):
-                self.screen[i] = L[i] + R[i]
-
-        elif side == 'l':
-            middle = self.x//2
-
-            # split screenshot into left and right halfs
-            L, R = [], []
-            for i in range(self.x):
-                L.append(self.screen[i][:middle])
-                R.append(self.screen[i][middle:])
-            
-            # scroll left-hand-side of the screenshot
-            L = L[pixels_to_scroll:] + L[:pixels_to_scroll]
-
-            for i in range(self.x):
-                self.screen[i] = L[i] + R[i]
-
-        elif side == "both":
-            self.screen = self.screen[pixels_to_scroll:] + self.screen[:pixels_to_scroll]
-        else:
-            raise Exception(f"Side can be 'l' or 'r' or 'both'!")
+    def _scroll_list(self, list, pixels_to_scroll):
+        return list[pixels_to_scroll:] + list[:pixels_to_scroll]
+    
 
 
 class AtomBinner:
@@ -475,7 +487,6 @@ class AtomBinner:
         return pixel_coords
 
     def _assign_outer_atoms_to_borders(self, pixel_coords):
-        print(f"DEBUG: pixel coords before: {pixel_coords}\n")
         for i, pixel_coord in enumerate(pixel_coords):
             if pixel_coord >= self.screen_size_in_pixels[i]:
                 pixel_coords[i] = self.screen_size_in_pixels[i] - 1
@@ -484,7 +495,6 @@ class AtomBinner:
             else:
                 pass
 
-        print(f"DEBUG: pixel coords after: {pixel_coords}\n")
         return pixel_coords
 
 
