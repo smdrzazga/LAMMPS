@@ -1,4 +1,5 @@
 from common.SCREEN import * 
+from common.IO import *
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.pool import Pool
@@ -19,27 +20,25 @@ DIRECTOR_PERIODS = 2
 AT_WALL = False
 plane = "xz"
 size = [150, 150]
+ATOMS_IN_MOLECULE = 11
 
 class DirectorScreenContainer:
     def __init__(self, size: tuple) -> None:
         self.screen = Screen(size, DirectorPixel)
         self.screenshotDirector = Screenshot(size, DirectorPixel)
         self.screenshotCenter = Screenshot(size, CenterPixel)
-        self.molecule = Banana(1, 11)
+        self.molecule = Banana(1, ATOMS_IN_MOLECULE)
 
 
 class BatchAnalyzer:
-    N_ATOMS = 0    
     def __init__(self, location) -> None:
         self.location = location
-        self.N_ATOMS = sz.read_number_of_atoms(location)
-        screen_container = DirectorScreenContainer(size)
+        self.screen_container = DirectorScreenContainer(size)
 
-    def analyze_batch(location):
-
-        C_left = 0 + 0j
-        C_right = 0 + 0j
-        C = 0 + 0j
+    def analyze_batch(self, ID):
+        data_chunk = DataChunk(self.location, ID)
+        reader = LAMMPSReader(data_chunk)
+        phase_tracker = PhaseTracker()
 
         with open(location, "r+") as f:
             data = mmap.mmap(f.fileno(), length = SIZE, offset = (n)*SIZE)
