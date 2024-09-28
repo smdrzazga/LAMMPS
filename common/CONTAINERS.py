@@ -1,6 +1,6 @@
-import os
-import numpy as np
+from MOLECULES import *
 from mmap import mmap
+import os
 
 class Data:
     def __init__(self, location) -> None:
@@ -52,8 +52,20 @@ class SimulationBox:
     def get_side_length(self, i) -> float:
         return self.size[i]
 
-class PhaseTracker:
-    def __init__(self) -> None:
-        C_left = 0 + 0j
-        C_right = 0 + 0j
-        C = 0 + 0j
+class NTBPhaseTracker:
+    def __init__(self, periods) -> None:
+        self.C_left = 0 + 0j
+        self.C_right = 0 + 0j
+        self.C = 0 + 0j
+        self.periods = periods
+
+    def update(self, molecule: Molecule, box: SimulationBox) -> None:
+        center = molecule.center_of_mass()
+        polarization = molecule.polarization()[1]
+
+        # calculate C = sum_i p_y(i) exp (2 n pi z(i)/L_z)
+        self.C += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
+        if center[0] < box.get_side_length(0)//2:
+            self.C_left += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
+        else:
+            self.C_right += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))

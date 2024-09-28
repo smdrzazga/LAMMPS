@@ -1,10 +1,9 @@
-from CONTAINERS import *
-
+import numpy as np
 
 class Atom:
     volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
 
-    def __init__(self, id: int, position: list, type=1) -> None:
+    def __init__(self, position: list, id=0, type=1) -> None:
         self.id = int(id)
         self.type = type
         self.position = np.array(position, dtype=np.float32)
@@ -12,8 +11,8 @@ class Atom:
     def __repr__(self) -> str:
         return f"{self.id} | {self.type} | {self.position}"
     
-    def wrap_to_box(self, box: SimulationBox):
-        self.position %= box.size
+    def wrap(self, size: list):
+        self.position %= np.array(size)
 
 
 class Molecule:
@@ -30,6 +29,10 @@ class Molecule:
         self.comp.append(atom)
         self.current_atoms += 1
 
+    def clear(self):
+        self.comp = []
+        self.current_atoms = 0
+
     def center_atom(self) -> Atom:
         return self._get_atom(self.current_atoms//2)
 
@@ -39,9 +42,12 @@ class Molecule:
             com += self._get_atom(i).position
         return com / self.current_atoms
 
-    def is_molecule_full(self) -> bool:
+    def is_full(self) -> bool:
         return self.current_atoms == self.max_atoms
     
+    def is_at_wall(self) -> bool:
+        return self.center_of_mass[0] < 5
+
     def set_position(self, position: list) -> None:
         mid = self.center_of_mass()
         for i in range(self.current_atoms):     

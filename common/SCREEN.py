@@ -125,8 +125,8 @@ class Screen:
         slice = np.array(range)
         return self.screen[slice[1,0] : slice[1,1]][slice[0,0]:slice[0,1]]
 
-    def assign(self, atom: Atom, x: float, y: float) -> None:
-        self._get_pixel(x,y).assign(atom)
+    def assign(self, atom: Atom, coords: list) -> None:
+        self._get_pixel(coords).assign(atom)
 
     def append_screenshot(self, screenshot: list) -> None:
         x, y = self.get_size_in_pixels()
