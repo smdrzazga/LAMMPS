@@ -1,5 +1,5 @@
 import numpy as np
-import banana_lib as sz
+import common.SCREEN as sz
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.pool import Pool

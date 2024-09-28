@@ -1,9 +1,7 @@
-import numpy as np
-import banana_lib as sz
+from common.SCREEN import * 
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.pool import Pool
-import mmap
 import time
 
 
@@ -14,11 +12,9 @@ locations = ["G:/lammps dane/two_domains/all_snapshots_0.32.lammpstrj"]
 
 
 NP = 10
-# input data and side of simulation box
 BATCH_START = 3
 BATCH_STOP = 10
 DIRECTOR_PERIODS = 2
-SIZE = mmap.ALLOCATIONGRANULARITY * 2000
 
 AT_WALL = False
 plane = "xz"
@@ -26,24 +22,17 @@ size = [150, 150]
 
 class DirectorScreenContainer:
     def __init__(self, size: tuple) -> None:
-        self.screen = sz.Screen(size, sz.DirectorPixel)
-        self.screenshotDirector = sz.Screenshot(size, sz.DirectorPixel)
-        self.screenshotCenter = sz.Screenshot(size, sz.CenterPixel)
-        self.molecule = sz.Molecule(1, 11)
-
-
-# TODO: MAKE DataReader CLASS FOR READING NUMBER OF ATOMS
-# FOR i. e. sz.read_number_of_atoms(location)
-# READING BORDERS, TRY-EXCEPT ATOM READING ETC.
+        self.screen = Screen(size, DirectorPixel)
+        self.screenshotDirector = Screenshot(size, DirectorPixel)
+        self.screenshotCenter = Screenshot(size, CenterPixel)
+        self.molecule = Banana(1, 11)
 
 
 class BatchAnalyzer:
-    location = ''
-    N_ATOMS = 0
-    
+    N_ATOMS = 0    
     def __init__(self, location) -> None:
         self.location = location
-        N_ATOMS = sz.read_number_of_atoms(location)
+        self.N_ATOMS = sz.read_number_of_atoms(location)
         screen_container = DirectorScreenContainer(size)
 
     def analyze_batch(location):

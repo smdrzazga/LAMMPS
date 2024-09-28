@@ -1,5 +1,14 @@
-import banana_lib as sz
+import common.SCREEN as sz
 import numpy as np
+
+
+
+def scale(target_volume: float, current_volume: float, num_walls: int) -> float:
+    # calculate ratio between current and new box edges lengths
+    if num_walls < 3:
+        return pow(target_volume / current_volume, 1 / (3 - num_walls))
+    if num_walls == 3:    
+        return 1
 
 # arc-banana-shaped molecule angles and radius
 molecule = sz.Molecule(1, 11)
@@ -31,8 +40,8 @@ volBoxStart = x * y * z
 volAtoms =  grid.x*grid.y*grid.z * molecule.atoms * sz.Atom.volume
 packingFractionStart = volAtoms / volBoxStart
 volBoxEnd = volAtoms / packingFractionEnd 
-scale = sz.scale( volBoxEnd, volBoxStart, N_WALLS )
-final_box = sz.Vector(x, y*scale, z)
+scale_coeff = scale(volBoxEnd, volBoxStart, N_WALLS)
+final_box = sz.Vector(x, y*scale_coeff, z)
 
 # variables determining lattice, on which molecules will be placed and distances between them
 offset_mult = sz.Vector((final_box.x-6)/grid.x, (final_box.y-0)/grid.y, (final_box.z-0)/grid.z)

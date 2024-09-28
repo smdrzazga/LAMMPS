@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import banana_lib as sz
+import common.SCREEN as sz
 from scipy.optimize import curve_fit
 
 

@@ -1,4 +1,4 @@
-import banana_lib as sz
+import common.SCREEN as sz
 import numpy as np
 from matplotlib import cm
 from matplotlib.colors import hsv_to_rgb
