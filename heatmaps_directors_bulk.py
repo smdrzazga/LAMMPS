@@ -70,6 +70,7 @@ class BatchAnalyzer:
                     screenshotDirector.assign(director, pixel_position)
                     screenshotCenter.assign(center, pixel_position)
 
+# ----------------------------------- CONTINUE HERE -------------------------------------------------------------
 
             # if there is only one molecule remaining to read the full snapshot then execute following
             if atom.id == N_ATOMS:
