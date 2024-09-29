@@ -1,8 +1,9 @@
 from common.SCREEN import * 
 from common.IO import *
-import matplotlib.pyplot as plt
+from common.UTILS import *
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.pool import Pool
+import matplotlib.pyplot as plt
 import time
 
 
@@ -17,35 +18,33 @@ BATCH_START = 3
 BATCH_STOP = 10
 DIRECTOR_PERIODS = 2
 
+ATOMS_IN_MOLECULE = 11
 ANALYSE_WALL = False
+ELIMINATE_GOLDSTONE = False
 plane = "xz"
 size = [150, 150]
-ATOMS_IN_MOLECULE = 11
-
-class DirectorScreenContainer:
-    def __init__(self, size: tuple) -> None:
-        self.screen = Screen(size, DirectorPixel)
-        self.screenshotDirector = Screenshot(size, DirectorPixel)
-        self.screenshotCenter = Screenshot(size, CenterPixel)
 
 
 class BatchAnalyzer:
     def __init__(self, location, ID) -> None:
         self.location = location
-        self.container = DirectorScreenContainer(size)
-        self.data_chunk = DataChunk(location, ID)
-        self.reader = LAMMPSReader(self.data_chunk)
+        self.batch_data = DataChunk(location, ID)
+        self.reader = LAMMPSReader(self.batch_data)
+        self.binner = AtomBinner(size, view_plane=plane)
+        self.phase_tracker = NTBPhaseTracker(DIRECTOR_PERIODS)
 
-    def analyze_batch(self):
-        phase_tracker = NTBPhaseTracker()
+        self.screen = Screen(size, DirectorPixel)
+        self.screenshotDirector = Screenshot(size, DirectorPixel)
+        self.screenshotCenter = Screenshot(size, CenterPixel)
+    
+    def clear_screenshots(self):
+        self.screenshotDirector = Screenshot(size, DirectorPixel)
+        self.screenshotCenter = Screenshot(size, CenterPixel)
 
+    def analyze_batch(self) -> Screen:
         self.reader.open()
-        boundaries = self.reader.read_boundaries()
-        N_ATOMS = self.reader.read_number_of_atoms()
-        box = SimulationBox(*boundaries, N_ATOMS)
-        binner = AtomBinner(box, self.screen.get_size_in_pixels(), view_plane=plane)
-        
-        molecule = Banana(1, ATOMS_IN_MOLECULE)
+        self.setup()
+
         line = self.reader.get_line_split()
         while line:
             try:
@@ -53,68 +52,68 @@ class BatchAnalyzer:
             except:
                 continue
             
-            if molecule.is_full():
-                molecule.clear()
+            if self.molecule.is_full():
+                self.molecule.clear()
             
-            molecule.add(atom)
+            self.molecule.add(atom)
 
-            if molecule.is_full:
-                center = Atom(molecule.center_of_mass())
-                center.wrap(box.get_all_side_lengths())
-        
-                phase_tracker.update(molecule, box)
-                if ANALYSE_WALL and molecule.is_at_wall():
-                    director = Atom(molecule.director())
-                    pixel_position = binner.determine_pixel(center)
+            if self.molecule.is_full:
+                self.phase_tracker.update(self.molecule, self.box)
+                center = Atom(self.molecule.center_of_mass())
+                center.wrap(self.box.get_all_side_lengths())
 
-                    screenshotDirector.assign(director, pixel_position)
-                    screenshotCenter.assign(center, pixel_position)
+                if ANALYSE_WALL and self.molecule.is_at_wall():
+                    director = Atom(self.molecule.director())
+                    pixel_position = self.binner.determine_pixel(center)
+
+                    self.screenshotDirector.assign(director, pixel_position)
+                    self.screenshotCenter.assign(center, pixel_position)
 
 # ----------------------------------- CONTINUE HERE -------------------------------------------------------------
 
-            # if there is only one molecule remaining to read the full snapshot then execute following
-            if atom.id == N_ATOMS:
-                # eliminate Goldstone's mods by shifting whole system along z axis by:  L_z * Arg(C) / 2pi
-                # flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
-                # flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
-                # pix_to_scroll_left = screenshotCenter.pixels_to_scroll(z, box, flow_left)
-                # pix_to_scroll_right = screenshotCenter.pixels_to_scroll(z, box, flow_right)
-                # screenshotDirector.scroll(pix_to_scroll_left, side="l")
-                # screenshotDirector.scroll(pix_to_scroll_right, side="r")
-
-                # flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
-                # pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
-                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
-
-                # add corrected screenshot to the final image
-                screen.append_screenshot(screenshotDirector)
-
-                # check whether average director aligns with z direction
-                # print(screenshotDirector.avg_director())
-                # print(screen.avg_director())
-
-                # clear current screenshot, box and flow measuring number C
-                boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
-                box = sz.SimulationBox(*boundaries, N_ATOMS)
-                screenshotDirector = sz.Screenshot(x, z, sz.DirectorPixel)
-                screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
-                C, C_left, C_right = 0. + 0.j, 0. + 0.j, 0. + 0.j
-
+            if atom.is_last(N_ATOMS):
+                if ELIMINATE_GOLDSTONE:
+                    self._eliminate_goldstone_mods_both_sides()
+                self.finalize_screenshot_analysis()
+                
             line = self.reader.get_line_split()
 
-        print(f"Task is done!: {n}")
+        print(f"Task is done!: {self.batch_data.ID}")
         return screen
 
+    def _eliminate_goldstone_mods_both_sides(self, tracker: NTBPhaseTracker, box: SimulationBox) -> None:
+        drift = tracker.compute_com_drift(box)
+        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(size[1], box, drift)
+        self.screenshotDirector.scroll_both_sides(pix_to_scroll_both)
+
+    def _eliminate_goldstone_mods_right_side(self, tracker: NTBPhaseTracker, box: SimulationBox) -> None:
+        drift = tracker.compute_com_drift(box)
+        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(size[1], box, drift)
+        self.screenshotDirector.scroll_right_side(pix_to_scroll_both)
     
+    def _eliminate_goldstone_mods_left_side(self, tracker: NTBPhaseTracker, box: SimulationBox) -> None:
+        drift = tracker.compute_com_drift(box)
+        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(size[1], box, drift)
+        self.screenshotDirector.scroll_left_side(pix_to_scroll_both)
+
+    def setup(self):
+        boundaries = self.reader.read_boundaries()
+        N_ATOMS = self.reader.read_number_of_atoms()
+        self.box = SimulationBox(boundaries, N_ATOMS)
+        self.molecule = Banana(1, ATOMS_IN_MOLECULE)
+
+    def update_box(self):
+        boundaries = self.reader.read_boundaries()
+        self.box.update_boundaries(boundaries)
+
+    def finalize_screenshot_analysis(self):
+        self.screen.append_screenshot(self.screenshotDirector)
+        self.update_box()
+        self.clear_screenshots()
+        self.phase_tracker.clear()
 
 
-
-
-def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 9, new_file: bool = True) -> None:
-    # common choices are 150x150 pix screen size
-    # pixels 4:9 for wall and 73:78 for bulk  
-    
-    # initialize
+def create_scatter(screen: Screen, location: str, start: int = 4, end: int = 9, new_file: bool = True) -> None:
     slices = [sz.HorizontalSlice(screen, row) for row in range(0, z)]
     slice_directors = np.zeros((z, 3))
 
@@ -123,13 +122,11 @@ def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 
         slice.read_slice(screen, start, end)
         slice_directors[i] = slice.component.local_director()
 
-    # create empty file / clear existing values
     if new_file:
         with open(location, "w+") as l:
             print('', end='', file=l)
 
     with open(location, "a+") as l:
-        # print(slice, end='', file=l)
         for i in range(z):
             print(f"{i} {slice_directors[i, 0]} {slice_directors[i, 1]} {slice_directors[i, 2]}", file=l)
 

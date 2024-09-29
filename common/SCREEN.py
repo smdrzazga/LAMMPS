@@ -212,13 +212,12 @@ class AtomBinner:
     _indice_map = {'x': 0, 'y': 1, 'z': 2}
     plane = ''
 
-    def __init__(self, sim_box: SimulationBox, screen_size_in_pixels: list, view_plane='xz') -> None:
+    def __init__(self, screen_size_in_pixels: list, view_plane='xz') -> None:
         self.plane = view_plane
-        self.box = sim_box
         self.screen_size_in_pixels = np.array(screen_size_in_pixels, dtype=np.float32)
 
-    def determine_pixel(self, atom: Atom):
-        box_size = self._get_box_size_from_viewing_plane()
+    def determine_pixel(self, atom: Atom, sim_box: SimulationBox):
+        box_size = self._get_box_size_from_viewing_plane(sim_box)
         atom_position = self._get_atom_position_from_viewing_plane(atom)
 
         pixel_size = self._compute_pixel_size(box_size)
@@ -228,9 +227,9 @@ class AtomBinner:
         return pixel_coords
     
 
-    def _get_box_size_from_viewing_plane(self):
+    def _get_box_size_from_viewing_plane(self, sim_box: SimulationBox):
         i, j = self._plane_to_coord_indices(self.plane)
-        box_size = np.array([self.box.get_side_length(i), self.box.get_side_length(j)])
+        box_size = np.array([sim_box.get_side_length(i), sim_box.get_side_length(j)])
 
         return box_size
 

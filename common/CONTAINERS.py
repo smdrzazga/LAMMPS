@@ -36,36 +36,21 @@ class DataChunk(Data):
     
 
 class SimulationBox:
-    def __init__(self, x_min, x_max, y_min, y_max, z_min, z_max, n_atoms) -> None:
-        self.min = np.array([x_min, y_min, z_min], dtype=np.float32)
-        self.max = np.array([x_max, y_max, z_max], dtype=np.float32)
-        self.size = np.array([x_max - x_min, y_max - y_min, z_max - z_min], dtype=np.float32)
-
-        self.atoms = int(n_atoms)
-        self.mols = 1
+    def __init__(self, boundaries: list, n_atoms) -> None:
+        self.update_boundaries(boundaries)
 
         self.volume = np.prod(self.size)
+        self.atoms = int(n_atoms)
 
     def get_all_side_lengths(self) -> list:
         return self.size
 
     def get_side_length(self, i) -> float:
         return self.size[i]
+    
+    def update_boundaries(self, new_boundaries: list):
+        [x_min, x_max, y_min, y_max, z_min, z_max] = new_boundaries
+        self.min = np.array([x_min, y_min, z_min], dtype=np.float32)
+        self.max = np.array([x_max, y_max, z_max], dtype=np.float32)
+        self.size = np.array([x_max - x_min, y_max - y_min, z_max - z_min], dtype=np.float32)
 
-class NTBPhaseTracker:
-    def __init__(self, periods) -> None:
-        self.C_left = 0 + 0j
-        self.C_right = 0 + 0j
-        self.C = 0 + 0j
-        self.periods = periods
-
-    def update(self, molecule: Molecule, box: SimulationBox) -> None:
-        center = molecule.center_of_mass()
-        polarization = molecule.polarization()[1]
-
-        # calculate C = sum_i p_y(i) exp (2 n pi z(i)/L_z)
-        self.C += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
-        if center[0] < box.get_side_length(0)//2:
-            self.C_left += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
-        else:
-            self.C_right += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))

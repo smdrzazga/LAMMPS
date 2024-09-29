@@ -14,6 +14,9 @@ class Atom:
     def wrap(self, size: list):
         self.position %= np.array(size)
 
+    def is_last(self, n_atoms):
+        return self.id == n_atoms
+
 
 class Molecule:
     def __init__(self, id: int, max_atoms: int) -> None:
