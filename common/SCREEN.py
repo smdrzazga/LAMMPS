@@ -3,7 +3,6 @@ from MOLECULES import *
 from scipy.sparse.linalg import eigsh
 
 
-
 class Pixel:
     def __init__(self) -> None:
         self.components = []
@@ -121,7 +120,7 @@ class Screen:
                 data += pix
         return data
     
-    def get_slice(self, range: list[list]):
+    def _get_slice(self, range: list[list]):
         slice = np.array(range)
         return self.screen[slice[1,0] : slice[1,1]][slice[0,0]:slice[0,1]]
 
@@ -206,6 +205,18 @@ class Screenshot(Screen):
     def _scroll_list(self, list, pixels_to_scroll):
         return list[pixels_to_scroll:] + list[:pixels_to_scroll]
     
+
+class Slice(Screen):
+    def __init__(self, screen: Screen, borders: list[list]) -> None:
+        size = np.array([borders[i][1] - borders[i][0] for i in range(2)])
+        super().__init__(size, screen._get_pixel_type())
+        self.screen = screen._get_slice(borders)
+        
+    def slice_director(self) -> list:
+        if not isinstance(self._get_pixel_type(), DirectorPixel):
+            raise TypeError("Pixel has to be Director Pixel")
+
+        return self.avg_director()
 
 
 class AtomBinner:

@@ -1,8 +1,10 @@
 from CONTAINERS import *
+from SCREEN import Screen
 
 
-class File(Data):
-    def __init__(self) -> None:
+class File(FileData):
+    def __init__(self, location) -> None:
+        super().__init__(location)
         self.file = None
 
     def __del__(self):
@@ -10,31 +12,43 @@ class File(Data):
             self.close()
 
     def open(self):
-        f = open(self.get_location(), 'r+')
-        self.file = mmap.mmap(f.fileno(), length=self.get_size())
+        open(self.location(), 'r+')
 
     def close(self):
         self.file.close()
+        self.file = None
 
     def clear(self):
         with open(self.file, 'r+w') as f:
             f.write('')
-    
 
-class LAMMPSReader(File):
-    def __init__(self, data_chunk: DataChunk) -> None:
-        super().__init__()
-        self.chunk = data_chunk
+
+class Reader(File):
+    def __init__(self, location) -> None:
+        super().__init__(location)
 
     def open(self):
-        f = open(self.get_location(), 'r+')
-        self.file = mmap.mmap(f.fileno(), length=self.get_size(), offset=self.chunk.get_offset())
+        f = open(self.location(), 'r+')
+        self.file = mmap.mmap(f.fileno(), length=self.get_size())
 
     def get_line(self):
-        return self.file.readline().decode()
-
+        try:
+            return self.file.readline().decode()
+        except:
+            raise ValueError("File is not opened!")
+        
     def get_line_split(self):
         return self.get_line().split()
+
+
+class LAMMPSReader(Reader):
+    def __init__(self, location) -> None:
+        super().__init__(location)
+
+    def open(self, batch_ID):
+        chunk = DataChunk(self.location, batch_ID)
+        f = open(self.get_location(), 'r+')
+        self.file = mmap.mmap(f.fileno(), length=chunk.get_size(), offset=chunk.get_offset())
 
     def read_boundaries(self) -> list:
         line = self.get_line()
@@ -74,8 +88,41 @@ class LAMMPSReader(File):
         return line_split[3] == 'ATOMS'
 
 
+class Writer(File):
+    def __init__(self, target_location) -> None:
+        super().__init__(target_location)
+
+    def open(self):
+        self.file = open(self.location(), 'a+')
+        
+    def write_line(self, line):
+        try:
+            self.file.write(line)
+        except:
+            raise ValueError("File is not opened!")
+    
+    def print_obj(self, object):
+        try:
+            print(object, end='', file=self.file)
+        except:
+            raise ValueError("File is not opened!")
+
+
+class ScreenPrinter:
+    def __init__(self, screen: Screen) -> None:
+        self.screen = screen
+
+    def print_screen(self, target_location):
+        writer = Writer(target_location)
+        writer.clear()
+        writer.open()
+        writer.print_obj(self.screen)
+        writer.close()
+
+
+
 # TODO: factorize
-class LAMMPSWriter(File):
+class LAMMPSWriter(Writer):
     def __init__(self) -> None:
         super().__init__()
 

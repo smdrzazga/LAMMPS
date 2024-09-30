@@ -1,3 +1,6 @@
+from IO import Writer
+from SCREEN import Screen
+from common.PROCESSING import *
 import numpy as np
 
 class HeatmapReader:
@@ -22,3 +25,35 @@ class HeatmapReader:
 
         return list_of_params
 
+
+class ScatterPrinter:
+    def __init__(self) -> None:
+        self.scatter = None
+
+    def create_scatter(self, screen: Screen, N_SLICES) -> None:
+        slices = self._create_slices(screen, N_SLICES)
+        slice_directors = self.calculate_directors(slices)
+        return slice_directors[:2, :]
+
+    def _create_slices(self, screen: Screen, N_SLICES) -> list[Slice]:
+        slice_width = screen.get_size_in_pixels()[0] // N_SLICES
+        sizes = [[[slice_width*(i-1), slice_width*i], [None, None]] for i in range(0, N_SLICES)]
+        slices = [Slice(screen, sizes[i]) for i in range(0, N_SLICES)]
+        return slices
+    
+    def calculate_directors(self, slices: list[Slice]) -> list[list]:
+        slice_directors = np.zeros((len(slices), 3))
+        for i, slice in enumerate(slices):
+            slice_directors[i] = slice.slice_director()
+        return slice_directors
+
+    def save_scatter(self, data, target_location) -> None:
+        writer = Writer(target_location)
+        writer.clear()
+        writer.open()
+        for i, point in enumerate(data):
+            line = f"{i} "
+            for coord in point:
+                line += f"{coord} "
+            writer.write_line(point + '\n')
+        writer.close()

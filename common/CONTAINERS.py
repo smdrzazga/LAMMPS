@@ -2,7 +2,7 @@ from MOLECULES import *
 from mmap import mmap
 import os
 
-class Data:
+class FileData:
     def __init__(self, location) -> None:
         self.location = location
         self.size = self.get_size()
@@ -15,7 +15,7 @@ class Data:
         file_size = file_stats.st_size
         return file_size
 
-class DataChunk(Data):
+class DataChunk(FileData):
     def __init__(self, location, chunk_ID) -> None:
         super().__init__(location)
         self.ID = chunk_ID
@@ -47,6 +47,12 @@ class SimulationBox:
 
     def get_side_length(self, i) -> float:
         return self.size[i]
+    
+    def get_num_atoms(self):
+        return self.atoms
+    
+    def get_volume(self):
+        return self.volume
     
     def update_boundaries(self, new_boundaries: list):
         [x_min, x_max, y_min, y_max, z_min, z_max] = new_boundaries
