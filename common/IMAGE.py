@@ -1,6 +1,6 @@
 from IO import Writer
 from SCREEN import Screen
-from common.PROCESSING import *
+from common.ORDER_PARAMETERS import *
 import numpy as np
 
 class HeatmapReader:

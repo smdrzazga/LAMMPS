@@ -1,57 +1,115 @@
-from common.SCREEN import *
+from IO import *
+from SCREEN import *
 from CONTAINERS import *
-import numpy as np
+from common.ORDER_PARAMETERS import *
+from main import GlobalParameters
 
+class BatchAnalyzer:
+    def __init__(self, parameters: GlobalParameters) -> None:
+        self.params = parameters.params
+        self.reader = LAMMPSReader(self.params['location'])
+        self.binner = AtomBinner(self.params['size'], view_plane=self.params['plane'])
+        self.phase_tracker = NTBPhase(self.params['DIRECTOR_PERIODS'])
+        self.screen = None
+        self.screenshot = None
 
-class NTBPhaseTracker:
-    def __init__(self, periods) -> None:
-        self.periods = periods
-        self.C_left = 0 + 0j
-        self.C_right = 0 + 0j
-        self.C = 0 + 0j
+    def setup(self):
+        boundaries = self.reader.read_boundaries()
+        N_ATOMS = self.reader.read_number_of_atoms()
+        self.box = SimulationBox(boundaries, N_ATOMS)
+        self.molecule = Molecule(1, self.params['ATOMS_IN_MOLECULE'])
+        self.atom = Atom()
 
-    def clear(self):
-        self.C_left = 0 + 0j
-        self.C_right = 0 + 0j
-        self.C = 0 + 0j
+    def analyze_batch(self, ID) -> Screen:
+        self.reader.open()
+        self.setup()
 
-    def update(self, molecule: Banana, box: SimulationBox) -> None:
-        center = molecule.center_of_mass()
-        polarization = molecule.polarization()[1]
+        line = self.reader.get_line_split()
+        while line:
+            try:
+                self.read_atom(line)
+            except:
+                continue
+                     
+            self.molecule.add(self.atom)
 
-        self.C += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
-        if center[0] < box.get_side_length(0)//2:
-            self.C_left += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
-        else:
-            self.C_right += polarization * np.exp(2j*self.periods*np.pi * center[2] / box.get_side_length(2))
+            if not self.molecule.is_full():
+                continue
 
-    def compute_com_drift(self, box: SimulationBox):
-        drift = box.get_side_length(2) / self.periods * np.angle(self.C) / (2*np.pi)
-        return drift
+            if self.params['ANALYSE_WALL'] and not self.molecule.is_at_wall():
+                continue
 
+            self.add_molecule_to_pixel()
+            self.molecule.clear()
 
-class SmecticParameter():
-    def __init__(self, periods: int) -> None:
-        self.parameter = 0 + 0j
-        self.count = 0
-        self.periods = periods
+            if self.atom.is_last(self.box.get_num_atoms()):
+                if self.params['ELIMINATE_GOLDSTONE']:
+                    self._eliminate_goldstone_mods_both_sides()
+                self.finalize_screenshot_analysis()
+                
+            line = self.reader.get_line_split()
 
-    def __repr__(self) -> str:
-       return f"{np.abs(self.parameter):.3f} | {self.count}"
+        print(f"Task is done!: {ID}")
+        return self.screen
 
-    # only for vertical slices in y-z plane!
-    def add_atom(self, center_coords: list, box: SimulationBox) -> None:
-        self.parameter += np.exp(self.periods * 2*np.pi*1j * center_coords[-1] / box.z)
-        self.count += 1
+    def analyze_batch(self, ID) -> NotImplementedError:
+        raise NotImplementedError("Function 'analyze_batch' is virtual in this scope.")
 
-    def normalize(self) -> None:
-        if self.count != 0:
-            self.parameter /= self.count
+    def add_molecule_to_pixel(self) -> NotImplementedError:
+        raise NotImplementedError("Function 'add_molecule_to_pixel' is virtual in this scope.")
     
-    def read_screen(self, screen: Screen, start: int, end: int) -> None:
-        HARD_CODED_LIMIT = 0
+    def _eliminate_goldstone_mods_both_sides(self) -> NotImplementedError:
+        raise NotImplementedError("Function '_eliminate_goldstone_mods_both_sides' is virtual in this scope.")
 
-        for x in range(start, end):
-            for y in range(HARD_CODED_LIMIT, screen.y):
-                self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
-                self.count += screen.screen[y][x].colour()
+    def clear_screenshots(self) -> NotImplementedError:
+        raise NotImplementedError("Function 'clear_screenshots' is virtual in this scope.")
+    
+    def read_atom(self, split_line):
+        self.atom = Atom(split_line[-3:], id=split_line[0])
+
+    def finalize_screenshot_analysis(self):
+        self.screen.append_screenshot(self.screenshot)
+        self.update_box()
+        self.clear_screenshots()
+        self.phase_tracker.clear()
+    
+    def update_box(self):
+        boundaries = self.reader.read_boundaries()
+        self.box.update_boundaries(boundaries)
+
+
+class DirectorFullAnalyzer(BatchAnalyzer):
+    def __init__(self, parameters: GlobalParameters) -> None:
+        super().__init__(parameters)
+        size = self.params['size']
+        
+        self.screen = Screen(size, DirectorPixel)
+        self.screenshot = Screenshot(size, DirectorPixel)
+        self.screenshotCenter = Screenshot(size, CenterPixel)
+    
+    def setup(self):
+        boundaries = self.reader.read_boundaries()
+        N_ATOMS = self.reader.read_number_of_atoms()
+        self.box = SimulationBox(boundaries, N_ATOMS)
+        self.molecule = Banana(1, self.params['ATOMS_IN_MOLECULE'])
+        self.atom = Atom()
+
+    def add_molecule_to_pixel(self):
+        self.phase_tracker.update(self.molecule, self.box)
+
+        director = Atom(self.molecule.director())
+        center = Atom(self.molecule.center_of_mass())
+        center.wrap(self.box.get_all_side_lengths())
+        pixel_position = self.binner.determine_pixel(center)
+
+        self.screenshot.assign(director, pixel_position)
+        self.screenshotCenter.assign(center, pixel_position)
+
+    def clear_screenshots(self):
+        self.screenshot = Screenshot(self.params['size'], DirectorPixel)
+        self.screenshotCenter = Screenshot(self.params['size'], CenterPixel)
+
+    def _eliminate_goldstone_mods_both_sides(self, tracker: NTBPhase, box: SimulationBox) -> None:
+        drift = tracker.compute_com_drift(box)
+        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(self.params['size'][1], box, drift)
+        self.screenshot.scroll_both_sides(pix_to_scroll_both)

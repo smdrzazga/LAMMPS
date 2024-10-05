@@ -3,7 +3,7 @@ import numpy as np
 class Atom:
     volume = 1.333 * 3.14 * 0.5 * 0.5 * 0.5
 
-    def __init__(self, position: list, id=0, type=1) -> None:
+    def __init__(self, position=[0., 0., 0.], id=0, type=0) -> None:
         self.id = int(id)
         self.type = type
         self.position = np.array(position, dtype=np.float32)
@@ -19,7 +19,7 @@ class Atom:
 
 
 class Molecule:
-    def __init__(self, id: int, max_atoms: int) -> None:
+    def __init__(self, id: int, max_atoms=11) -> None:
         self.id = id   
         self.comp = []
         self.max_atoms = max_atoms
