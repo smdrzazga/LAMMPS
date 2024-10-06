@@ -1,8 +1,5 @@
 from common.PROCESSING import *
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.pool import Pool
-import time
-
+from common.TIMERS import *
 
 class GlobalParameters:
     user = "Szymek"
@@ -32,23 +29,21 @@ class GlobalParameters:
         self.params.update(kwargs)
 
 
-#TODO: use GlobalParameters
+#TODO: move timer to analyzer
+# is PIXEL_TYPE necessary?
+
 if __name__ == '__main__':
     params = GlobalParameters()
-    screen = Screen(params['size'], DirectorPixel)
+    analyzer = DirectorFullAnalyzer(params['LOCATION'])
 
-    t1 = time.time()
-    with Pool(NP) as executor:
-        IDs = [ID for ID in range(NP)]
-        analyze = BatchAnalyzer(location).analyze_batch
-        for result in executor.starmap(analyze, IDs):
-            screen.append_screenshot(result)
+    screen = Screen(params['size'], params['PIXEL_TYPE'])
+    timer_analysis = Timer()
+    timer_printer = Timer(message_start='Here comes the heatmap!')
 
+    timer_analysis.print_duration(
+        analyzer.get_results_in_parallel(screen, analyzer, params)
+    )
 
-        print("Here comes the heatmap!")
-        ScreenPrinter(screen).print_screen(target_file)
-        print("Finished! Yay!")
-
-    t2 = time.time()
-    print(f"Time elapsed: {t2 - t1}")
-    print("Bye bye, heatmap!")
+    timer_printer.print_duration(
+        ScreenPrinter(screen).print_screen(params['TARGET_FILE'])
+    )

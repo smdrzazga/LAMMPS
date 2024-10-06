@@ -1,8 +1,12 @@
+from main import GlobalParameters
+from multiprocessing.pool import Pool
+from concurrent.futures import ProcessPoolExecutor
+
 from IO import *
 from SCREEN import *
 from CONTAINERS import *
-from common.ORDER_PARAMETERS import *
-from main import GlobalParameters
+from ORDER_PARAMETERS import *
+from TIMERS import *
 
 class BatchAnalyzer:
     def __init__(self, parameters: GlobalParameters) -> None:
@@ -113,3 +117,11 @@ class DirectorFullAnalyzer(BatchAnalyzer):
         drift = tracker.compute_com_drift(box)
         pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(self.params['size'][1], box, drift)
         self.screenshot.scroll_both_sides(pix_to_scroll_both)
+
+    def get_results_in_parallel(self, screen: Screen) -> None:
+        with Pool(self.params['NP']) as executor:
+            IDs = [ID for ID in range(self.params['NP'])]
+            for result in executor.starmap(self.analyze_batch, IDs):
+                screen.append_screenshot(result)
+
+
