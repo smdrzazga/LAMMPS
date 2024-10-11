@@ -2,34 +2,14 @@ from CONTAINERS import *
 from SCREEN import Screen
 
 
-class File(FileData):
+class Reader:
     def __init__(self, location) -> None:
-        super().__init__(location)
-        self.file = None
-
-    def __del__(self):
-        if self.file is not None:
-            self.close()
+        self.file = File(location)
+        self.map = None
 
     def open(self):
-        open(self.location(), 'r+')
-
-    def close(self):
-        self.file.close()
-        self.file = None
-
-    def clear(self):
-        with open(self.file, 'r+w') as f:
-            f.write('')
-
-
-class Reader(File):
-    def __init__(self, location) -> None:
-        super().__init__(location)
-
-    def open(self):
-        f = open(self.location(), 'r+')
-        self.file = mmap.mmap(f.fileno(), length=self.get_size())
+        f = open(self.file.get_location(), 'r+')
+        self.map = mmap.mmap(f.fileno(), length=self.file.get_file_size())
 
     def get_line(self):
         try:
@@ -45,10 +25,10 @@ class LAMMPSReader(Reader):
     def __init__(self, location) -> None:
         super().__init__(location)
 
-    def open(self, batch_ID):
-        chunk = DataChunk(self.location, batch_ID)
-        f = open(self.get_location(), 'r+')
-        self.file = mmap.mmap(f.fileno(), length=chunk.get_size(), offset=chunk.get_offset())
+    def open(self, proc_params: map, batch_ID):
+        chunk = ChunkData(proc_params, batch_ID)
+        f = open(chunk.get_location(), 'r+')
+        self.file = mmap.mmap(f.fileno(), length=chunk.get_chunk_size(), offset=chunk.get_offset())
 
     def read_boundaries(self) -> list:
         line = self.get_line()

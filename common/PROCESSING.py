@@ -10,10 +10,12 @@ from TIMERS import *
 
 class BatchAnalyzer:
     def __init__(self, parameters: GlobalParameters) -> None:
-        self.params = parameters.params
-        self.reader = LAMMPSReader(self.params['location'])
-        self.binner = AtomBinner(self.params['size'], view_plane=self.params['plane'])
-        self.phase_tracker = NTBPhase(self.params['DIRECTOR_PERIODS'])
+        self.proc_params = parameters.proc_params
+        self.file_params = parameters.file_params
+        self.snap_params = parameters.snap_params
+        self.reader = LAMMPSReader(parameters.file_params)
+        self.binner = AtomBinner(self.snap_params['size'], view_plane=self.snap_params['plane'])
+        self.phase_tracker = NTBPhase(self.snap_params['DIRECTOR_PERIODS'])
         self.screen = None
         self.screenshot = None
 
@@ -21,7 +23,7 @@ class BatchAnalyzer:
         boundaries = self.reader.read_boundaries()
         N_ATOMS = self.reader.read_number_of_atoms()
         self.box = SimulationBox(boundaries, N_ATOMS)
-        self.molecule = Molecule(1, self.params['ATOMS_IN_MOLECULE'])
+        self.molecule = Molecule(1, self.snap_params['ATOMS_IN_MOLECULE'])
         self.atom = Atom()
 
     def analyze_batch(self, ID) -> Screen:
@@ -40,14 +42,14 @@ class BatchAnalyzer:
             if not self.molecule.is_full():
                 continue
 
-            if self.params['ANALYSE_WALL'] and not self.molecule.is_at_wall():
+            if self.snap_params['ANALYSE_WALL'] and not self.molecule.is_at_wall():
                 continue
 
             self.add_molecule_to_pixel()
             self.molecule.clear()
 
             if self.atom.is_last(self.box.get_num_atoms()):
-                if self.params['ELIMINATE_GOLDSTONE']:
+                if self.snap_params['ELIMINATE_GOLDSTONE']:
                     self._eliminate_goldstone_mods_both_sides()
                 self.finalize_screenshot_analysis()
                 
@@ -85,7 +87,7 @@ class BatchAnalyzer:
 class DirectorFullAnalyzer(BatchAnalyzer):
     def __init__(self, parameters: GlobalParameters) -> None:
         super().__init__(parameters)
-        size = self.params['size']
+        size = self.snap_params['size']
         
         self.screen = Screen(size, DirectorPixel)
         self.screenshot = Screenshot(size, DirectorPixel)
@@ -95,7 +97,7 @@ class DirectorFullAnalyzer(BatchAnalyzer):
         boundaries = self.reader.read_boundaries()
         N_ATOMS = self.reader.read_number_of_atoms()
         self.box = SimulationBox(boundaries, N_ATOMS)
-        self.molecule = Banana(1, self.params['ATOMS_IN_MOLECULE'])
+        self.molecule = Banana(1, self.snap_params['ATOMS_IN_MOLECULE'])
         self.atom = Atom()
 
     def add_molecule_to_pixel(self):
@@ -110,18 +112,18 @@ class DirectorFullAnalyzer(BatchAnalyzer):
         self.screenshotCenter.assign(center, pixel_position)
 
     def clear_screenshots(self):
-        self.screenshot = Screenshot(self.params['size'], DirectorPixel)
-        self.screenshotCenter = Screenshot(self.params['size'], CenterPixel)
+        self.screenshot = Screenshot(self.snap_params['size'], DirectorPixel)
+        self.screenshotCenter = Screenshot(self.snap_params['size'], CenterPixel)
 
     def _eliminate_goldstone_mods_both_sides(self, tracker: NTBPhase, box: SimulationBox) -> None:
         drift = tracker.compute_com_drift(box)
-        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(self.params['size'][1], box, drift)
+        pix_to_scroll_both = self.screenshotCenter.pixels_to_scroll(self.snap_params['size'][1], box, drift)
         self.screenshot.scroll_both_sides(pix_to_scroll_both)
 
-    def get_results_in_parallel(self, screen: Screen) -> None:
-        with Pool(self.params['NP']) as executor:
-            IDs = [ID for ID in range(self.params['NP'])]
+    def get_results_in_parallel(self) -> None:
+        with Pool(self.proc_params['NP']) as executor:
+            IDs = [ID for ID in range(self.proc_params['NP'])]
             for result in executor.starmap(self.analyze_batch, IDs):
-                screen.append_screenshot(result)
+                self.screen.append_screenshot(result)
 
 
