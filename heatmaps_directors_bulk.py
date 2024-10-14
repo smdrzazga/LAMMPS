@@ -7,17 +7,27 @@ import mmap
 import time
 
 
-# locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
-# locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
-locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
-# locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
+locations = [
+    "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj"
+]
 
 
 
 NP = 10
 # input data and side of simulation box
-BATCH_START = 5
-BATCH_STOP = 8
+BATCH_START = 1
+BATCH_STOP = 90
 DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
@@ -141,6 +151,22 @@ def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 
             print(f"{i} {slice_directors[i, 0]} {slice_directors[i, 1]} {slice_directors[i, 2]}", file=l)
 
 
+def create_director_matrix(screen: sz.Screen, location):
+    results = []
+    with Pool(NP) as executor:
+        args = zip([(i, j) for i in range(z) for j in range(x)],  [screen.screen[i][j] for i in range(z) for j in range(x)])
+        for result in executor.starmap(_get_director, args):
+            results.append(result)
+
+    with open(location, "w+") as l:
+        for line in results:
+            i, j, director = line
+            print(f"{i} {j} {director[0]} {director[1]} {director[2]}", file=l)
+                
+def _get_director(coords, pixel):
+    i, j = coords
+    return [i, j, pixel.local_director()]
+
 
 if __name__ == '__main__':
 
@@ -151,7 +177,7 @@ if __name__ == '__main__':
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_screen_bulk_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/directors_screen_full_" + mode + '_' + density + ".txt"
 
         t1 = time.time()
         with Pool(NP) as executor:
@@ -159,24 +185,10 @@ if __name__ == '__main__':
             for result in executor.starmap(analyze_batch, args):
                 screen.append_screenshot(result)
 
-        with open(screen_file, "w+") as t:
-            print("", end='', file=t)
-
-        with open(screen_file, "a+") as t:
-            print("Here comes the heatmap!")
-            print(screen, end='', file=t)
-            print("Finished! Yay!")
+        print("Here comes the heatmap!")
+        create_director_matrix(screen, screen_file)
+        print("Finished! Yay!")
 
         t2 = time.time()
         print(f"Time elapsed: {t2 - t1}")
         print("Bye bye, heatmap!")
-
-    # screen_file = "C:/Users/Szymek/Desktop/3d_0.300.txt"
-    # create_scatter(screen, screen_file, start=4, end=9)
-    # for i in range(10, 145, 5):
-    #     start = i
-    #     end = i + 5
-    #     print("Here comes the heatmap!")
-
-    #     create_scatter(screen, screen_file, start=start, end=end, new_file=False)
-    #     print("Bye bye, heatmap!")
