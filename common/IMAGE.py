@@ -1,5 +1,5 @@
-from IO import Writer
-from SCREEN import Screen
+from common.IO import Writer
+from common.SCREEN import Screen
 from common.ORDER_PARAMETERS import *
 import numpy as np
 

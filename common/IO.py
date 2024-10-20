@@ -1,42 +1,85 @@
-from CONTAINERS import *
-from SCREEN import Screen
+from common.CONTAINERS import *
+from common.SCREEN import Screen
+from config import ProcessingParameters
+from mmap import mmap
+
+
+class EmptyFile:
+    def __init__(self, location) -> None:
+        self.location = location
+        self.file = None
+
+    def open(self):
+        self.file = open(self.get_location(), 'r+')
+        return self.file 
+
+    def get_location(self):
+        return self.location
+
+    def close(self):
+        self.file.close()
+        self.file = None
+
+    def clear(self):
+        with open(self.file, 'w') as f:
+            f.write('')
+
+
+class File(EmptyFile):
+    def __init__(self, location) -> None:
+        super().__init__(location)
+        self.data = SimulationData(location)
+
+    def get_file_size(self):
+        return self.data.get_file_size()
+
+    def close(self):
+        self.file.close()
+        self.file = None
+
 
 
 class Reader:
     def __init__(self, location) -> None:
         self.file = File(location)
         self.map = None
+        self.f = None
 
     def open(self):
-        f = open(self.file.get_location(), 'r+')
-        self.map = mmap.mmap(f.fileno(), length=self.file.get_file_size())
+        self.f = self.file.open()
+        self.map = mmap(self.f.fileno(), length=self.file.get_file_size())
+
+    def close(self):
+        try:
+            self.map.close()
+            self.f.close()
+        except:
+            raise FileNotFoundError("File is already closed.")
 
     def get_line(self):
         try:
-            return self.file.readline().decode()
+            return self.map.readline()
         except:
             raise ValueError("File is not opened!")
         
     def get_line_split(self):
         return self.get_line().split()
+    
+    def get_location(self):
+        return self.file.get_location()
 
 
 class LAMMPSReader(Reader):
-    def __init__(self, location) -> None:
-        super().__init__(location)
+    def __init__(self, proc_params: ProcessingParameters) -> None:
+        super().__init__(proc_params.params["INPUT_FILE"])
+        self.chunk = ChunkData(proc_params)
 
-    def open(self, proc_params: map, batch_ID):
-        chunk = ChunkData(proc_params, batch_ID)
-        f = open(chunk.get_location(), 'r+')
-        self.file = mmap.mmap(f.fileno(), length=chunk.get_chunk_size(), offset=chunk.get_offset())
+    def open(self, batch_ID):
+        f = self.file.open()
+        self.map = mmap(f.fileno(), length=self.chunk.get_chunk_size(), offset=self.chunk.get_offset(batch_ID))
 
-    def read_boundaries(self) -> list:
-        line = self.get_line()
-                        
-        while not self.is_box_header(line):
-            line = self.get_line()
-        
-        l = self.get_line_split()
+    def read_boundaries(self) -> list:      
+        l = self.find_line(self.is_box_header)
         x_min, x_max = np.array(l, dtype=np.float32)
         
         l = self.get_line_split()
@@ -48,14 +91,23 @@ class LAMMPSReader(Reader):
         return np.array([x_min, x_max, y_min, y_max, z_min, z_max], dtype=np.float32)
 
     def read_number_of_atoms(self):
-        self.open()
-        line_split = self.get_line_split()
-        
-        while not self.is_atoms_number_header(line_split):
-            line_split = self.get_line_split()
-        atom_number_line = self.get_line_split()
+        atom_number_line = self.find_line(self.is_atoms_number_header)
+        return int(atom_number_line[0])
+    
+    def read_atom_elements(self):
+        atom_elements = self.find_line(self.is_atom_elements_header)
+        return atom_elements[2:]
 
-        return int(atom_number_line.strip()[0])
+    def find_line(self, critera_func):
+        line_split = self.get_line_split()
+        while not critera_func(line_split):
+            line_split = self.get_line_split()
+        return self.get_line_split()
+
+    def is_atom_elements_header(self, line_split):
+        if len(line_split) < 5:
+            return False
+        return line_split[1] == 'ATOMS'
 
     def is_box_header(self, line_split):
         if len(line_split) < 2:
@@ -68,22 +120,20 @@ class LAMMPSReader(Reader):
         return line_split[3] == 'ATOMS'
 
 
-class Writer(File):
+class Writer:
     def __init__(self, target_location) -> None:
-        super().__init__(target_location)
+        self.file = EmptyFile(target_location)
+        self.pointer = None
 
-    def open(self):
-        self.file = open(self.location(), 'a+')
+    def open(self, mode='w+'):
+        self.pointer = open(self.file.get_location(), mode)
         
-    def write_line(self, line):
+    def close(self):
+        self.pointer.close()
+
+    def write(self, line, end=''):
         try:
-            self.file.write(line)
-        except:
-            raise ValueError("File is not opened!")
-    
-    def print_obj(self, object):
-        try:
-            print(object, end='', file=self.file)
+            print(line, end=end, file=self.pointer)
         except:
             raise ValueError("File is not opened!")
 

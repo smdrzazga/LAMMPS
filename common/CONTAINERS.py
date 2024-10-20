@@ -1,5 +1,6 @@
-from MOLECULES import *
-from mmap import mmap
+from common.MOLECULES import *
+from config import *
+from mmap import ALLOCATIONGRANULARITY
 import os
 
 class SimulationData:
@@ -15,55 +16,25 @@ class SimulationData:
         file_size = file_stats.st_size
         return file_size
 
-class File:
-    def __init__(self, location) -> None:
-        self.data = SimulationData(location)
-        self.file = None
-
-    def __del__(self):
-        if self.file is not None:
-            self.close()
-
-    def open(self):
-        open(self.data.get_location(), 'r+')
-
-    def get_location(self):
-        return self.data.location
-
-    def get_file_size(self):
-        return self.data.get_file_size()
-
-    def close(self):
-        self.file.close()
-        self.file = None
-
-    def clear(self):
-        with open(self.file, 'r+w') as f:
-            f.write('')
-
 class ChunkData(SimulationData):
-    def __init__(self, file_params: map, chunk_ID) -> None:
-        super().__init__(file_params["location"])
-        self.params = file_params
-        self.ID = chunk_ID
-        self.offset = self.get_offset()
-    
-    def get_ID(self):
-        return self.ID
+    def __init__(self, proc_params: ProcessingParameters) -> None:
+        super().__init__(proc_params.params["INPUT_FILE"])
+        self.proc_params = proc_params.params
 
-    def get_offset(self):
-        start_percent, stop_percent = self.params["ANALYZE_RANGE"]
-        return self.get_file_size()*start_percent + self.get_chunk_size() * self.ID
+    def get_offset(self, ID) -> int:
+        start_percent, stop_percent = self.proc_params["ANALYZE_RANGE"]
+        offset = int(self.get_file_size()*start_percent + self.get_chunk_size()*ID)
+        return offset
     
-    def get_chunk_size(self):
-        file_percent = self.params["ANALYZE_RANGE"][1] - self.params["ANALYZE_RANGE"][0]
-        chunk_size = self.get_file_size() * file_percent // self.params["NP"]  
-        return self._round_up(chunk_size, mmap.ALLOCATIONGRANULARITY)
+    def get_chunk_size(self) -> int:
+        file_percent = self.proc_params["ANALYZE_RANGE"][1] - self.proc_params["ANALYZE_RANGE"][0]
+        chunk_size = self.get_file_size() * file_percent // self.proc_params["NP"]  
+        return self._round_up(chunk_size, ALLOCATIONGRANULARITY)
     
-    def _round_up(self, value, precision):
+    def _round_up(self, value, precision) -> int:
         value += precision
         value -= value % precision
-        return value
+        return int(value)
     
 
 class SimulationBox:

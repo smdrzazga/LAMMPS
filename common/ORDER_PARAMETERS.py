@@ -1,5 +1,5 @@
 from common.SCREEN import *
-from CONTAINERS import *
+from common.CONTAINERS import *
 import numpy as np
 
 

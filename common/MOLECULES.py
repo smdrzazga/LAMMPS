@@ -94,10 +94,13 @@ class Banana(Molecule):
 
     def director(self) -> list:
         director = self._get_atom(-1).position - self._get_atom(0).position
-        director /= np.linalg.norm(director)
+        norm = np.linalg.norm(director)
+        if norm > 1e7:
+            director /= np.linalg.norm(director)
+        
         return director
 
-    def polarization(self) -> None:
+    def polarization(self) -> np.array:
         middle_atom = self._get_atom(self.current_atoms//2).position
         average = (self._get_atom(-1).position + self._get_atom(0).position) / 2
         return middle_atom - average

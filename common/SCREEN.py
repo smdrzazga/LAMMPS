@@ -1,5 +1,5 @@
-from CONTAINERS import *
-from MOLECULES import *
+from common.CONTAINERS import *
+from common.MOLECULES import *
 from scipy.sparse.linalg import eigsh
 
 
@@ -125,7 +125,7 @@ class Screen:
         return self.screen[slice[1,0] : slice[1,1]][slice[0,0]:slice[0,1]]
 
     def assign(self, atom: Atom, coords: list) -> None:
-        self._get_pixel(coords).assign(atom)
+        self._get_pixel(*coords).assign(atom)
 
     def append_screenshot(self, screenshot: list) -> None:
         x, y = self.get_size_in_pixels()
@@ -227,46 +227,46 @@ class AtomBinner:
         self.plane = view_plane
         self.screen_size_in_pixels = np.array(screen_size_in_pixels, dtype=np.float32)
 
-    def determine_pixel(self, atom: Atom, sim_box: SimulationBox):
+    def determine_pixel(self, atom: Atom, sim_box: SimulationBox) -> np.array:
         box_size = self._get_box_size_from_viewing_plane(sim_box)
         atom_position = self._get_atom_position_from_viewing_plane(atom)
 
-        pixel_size = self._compute_pixel_size(box_size)
+        pixel_size = self._compute_pixel_size(box_size)         # TODO: add non-square pixels
         pixel_coords = self._translate_atom_to_pixel(atom_position, pixel_size)
         pixel_coords = self._assign_outer_atoms_to_borders(pixel_coords)
 
         return pixel_coords
     
 
-    def _get_box_size_from_viewing_plane(self, sim_box: SimulationBox):
+    def _get_box_size_from_viewing_plane(self, sim_box: SimulationBox) -> np.array:
         i, j = self._plane_to_coord_indices(self.plane)
         box_size = np.array([sim_box.get_side_length(i), sim_box.get_side_length(j)])
 
         return box_size
 
-    def _get_atom_position_from_viewing_plane(self, atom: Atom):
+    def _get_atom_position_from_viewing_plane(self, atom: Atom) -> np.array:
         i, j = self._plane_to_coord_indices(self.plane)
         atom_position = np.array([atom.position[i], atom.position[j]])
 
         return atom_position
     
-    def _plane_to_coord_indices(self, plane: str):        
+    def _plane_to_coord_indices(self, plane: str) -> list[int, int]:        
         i = self._indice_map[plane[0]]
         j = self._indice_map[plane[1]]
 
         return i, j
 
-    def _compute_pixel_size(self, box_size):
+    def _compute_pixel_size(self, box_size) -> float:
         pixel_size = box_size / self.screen_size_in_pixels
 
         return pixel_size
 
-    def _translate_atom_to_pixel(self, atom_position, pixel_size):
+    def _translate_atom_to_pixel(self, atom_position, pixel_size) -> np.array:
         pixel_coords = np.array(atom_position // pixel_size, dtype=np.int32)
 
         return pixel_coords
 
-    def _assign_outer_atoms_to_borders(self, pixel_coords):
+    def _assign_outer_atoms_to_borders(self, pixel_coords) -> np.array:
         for i, pixel_coord in enumerate(pixel_coords):
             if pixel_coord >= self.screen_size_in_pixels[i]:
                 pixel_coords[i] = self.screen_size_in_pixels[i] - 1
