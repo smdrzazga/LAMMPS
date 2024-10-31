@@ -38,12 +38,40 @@ class File(EmptyFile):
         self.file = None
 
 
-
 class Reader:
     def __init__(self, location) -> None:
         self.file = File(location)
+        self.pointer = None
+
+    def open(self):
+        self.pointer = self.file.open()
+
+    def close(self):
+        try:
+            self.pointer.close()
+        except:
+            raise FileNotFoundError("File is already closed.")
+
+    def read_whole_file(self):
+        return self.pointer.read()
+
+    def get_line(self):
+        try:
+            return self.pointer.readline()
+        except:
+            raise ValueError("File is not opened!")
+        
+    def get_line_split(self):
+        return self.get_line().split()
+    
+    def get_location(self):
+        return self.file.get_location()
+
+
+class MmapReader(Reader): 
+    def __init__(self, location) -> None:
+        super().__init__(location)
         self.map = None
-        self.f = None
 
     def open(self):
         self.f = self.file.open()
@@ -55,21 +83,14 @@ class Reader:
             self.f.close()
         except:
             raise FileNotFoundError("File is already closed.")
-
+        
     def get_line(self):
         try:
-            return self.map.readline()
+            return self.map.readline().decode()
         except:
             raise ValueError("File is not opened!")
-        
-    def get_line_split(self):
-        return self.get_line().split()
-    
-    def get_location(self):
-        return self.file.get_location()
 
-
-class LAMMPSReader(Reader):
+class LAMMPSReader(MmapReader):
     def __init__(self, proc_params: ProcessingParameters) -> None:
         super().__init__(proc_params.params["INPUT_FILE"])
         self.chunk = ChunkData(proc_params)
@@ -79,7 +100,8 @@ class LAMMPSReader(Reader):
         self.map = mmap(f.fileno(), length=self.chunk.get_chunk_size(), offset=self.chunk.get_offset(batch_ID))
 
     def read_boundaries(self) -> list:      
-        l = self.find_line(self.is_box_header)
+        self.find_line(self.is_box_header)
+        l = self.get_line_split()
         x_min, x_max = np.array(l, dtype=np.float32)
         
         l = self.get_line_split()
@@ -91,7 +113,8 @@ class LAMMPSReader(Reader):
         return np.array([x_min, x_max, y_min, y_max, z_min, z_max], dtype=np.float32)
 
     def read_number_of_atoms(self):
-        atom_number_line = self.find_line(self.is_atoms_number_header)
+        self.find_line(self.is_atoms_number_header)
+        atom_number_line = self.get_line_split()
         return int(atom_number_line[0])
     
     def read_atom_elements(self):
@@ -102,7 +125,7 @@ class LAMMPSReader(Reader):
         line_split = self.get_line_split()
         while not critera_func(line_split):
             line_split = self.get_line_split()
-        return self.get_line_split()
+        return line_split
 
     def is_atom_elements_header(self, line_split):
         if len(line_split) < 5:
