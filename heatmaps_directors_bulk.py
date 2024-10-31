@@ -8,27 +8,27 @@ import time
 
 
 locations = [
-    "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj"
+    # "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+    # "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
 ]
+# locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
 
 
-
-NP = 10
+NP = 11
 # input data and side of simulation box
 BATCH_START = 1
-BATCH_STOP = 90
-DIRECTOR_PERIODS = 1
+BATCH_STOP = 130
+DIRECTOR_PERIODS = 2
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
 AT_WALL = False
@@ -87,7 +87,7 @@ def analyze_batch(n, location, N_ATOMS):
                 # reject if center is not close to the wall, else add to screenshot
                 if not AT_WALL or (AT_WALL and center.position[0] < 5):
                     # assign director to the bin corresponding to the position of middle atom of the molecule
-                    director = sz.Atom(molecule.id, *molecule.director())
+                    director = sz.Atom(molecule.id, *molecule.polarization())
                     pixel_position = screen.determine_pixel(center, box, plane)
     
                     screenshotDirector.assign(director, *pixel_position)
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/directors_screen_full_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/directors_matrices/polarization_screen_full_" + mode + '_' + density + ".txt"
 
         t1 = time.time()
         with Pool(NP) as executor:

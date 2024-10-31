@@ -9,15 +9,16 @@ import time
 
 # locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
-locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
+locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
 
 
-NP = 10
+NP = 11
 # input data and side of simulation box
-BATCH_START = 5
-BATCH_STOP = 8
-DIRECTOR_PERIODS = 1
+BATCH_START = 1
+BATCH_STOP = 130
+DIRECTOR_PERIODS = 2
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
 AT_WALL = False
