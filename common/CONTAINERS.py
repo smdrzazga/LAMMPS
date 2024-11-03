@@ -38,7 +38,7 @@ class ChunkData(SimulationData):
     
 
 class SimulationBox:
-    def __init__(self, boundaries: list, n_atoms) -> None:
+    def __init__(self, boundaries: list, n_atoms=11) -> None:
         self.update_boundaries(boundaries)
 
         self.volume = np.prod(self.size)

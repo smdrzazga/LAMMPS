@@ -12,7 +12,7 @@ class ProcessingParameters(Parameters):
         params = {
             'INPUT_FILE' : None,
             'NP' : 10,
-            'ANALYZE_RANGE' : (0., 0.005)
+            'ANALYZE_RANGE' : (0., 1.)
         }
 
 class FileParameters(Parameters):

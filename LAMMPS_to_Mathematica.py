@@ -1,15 +1,25 @@
 from common.IO import Writer, Reader
+from common.IO import LAMMPSReader
+from common.CONTAINERS import SimulationBox
+from config import ProcessingParameters
+import numpy as np
 
 class Sphere:
     def __init__(self, coords, radius) -> None:
         if len(coords) != 3:
             raise ValueError("Coords dimension is different than 3!")
-        self.coords = coords
+        self.coords = np.array(coords)
         self.radius = radius
 
     def __repr__(self) -> str:
         point = ', '.join(str(coord) for coord in self.coords)
         return f"Sphere[{{{point}}},{self.radius}]"
+    
+    def updatePositionAll(self, newPositions: list[float, float, float]):
+        self.coords = newPositions
+
+    def updatePosition(self, newPosition: float, axis):
+        self.coords[axis] = newPosition
     
 
 class SphereContainer:
@@ -34,6 +44,31 @@ class SphereContainer:
     def isFull(self):
         return len(self.arrSpheres) == self.max
 
+    def wrapToBox(self, boundaries: list[float, float, float]) -> None:
+        atomCoords = self._getAtomCoords()
+        comCoords = self._getCOMwrapped(boundaries)
+        for i, atom in enumerate(self.arrSpheres):
+            x = atomCoords[i] % boundaries
+            atom.updatePositionAll(atomCoords[i] % boundaries)
+        self._glueTornMolecule(comCoords, boundaries)
+    
+    def _getAtomCoords(self) -> list[list]:
+        return np.array([sphere.coords for sphere in self.arrSpheres], dtype = np.float32)
+    
+    def _getCOMwrapped(self, boundaries: list[float, float, float]) -> list[float, float, float]:
+        comCoords = np.average(self._getAtomCoords(), axis=0).flatten()
+        return comCoords % boundaries
+    
+    def _glueTornMolecule(self, COM: list[float, float, float], boundaries: list[float, float, float]) -> None:
+        _maxDist = self.max * 2*self.arrSpheres[0].radius
+        for atom in self.arrSpheres:
+            for axis in range(3):
+                dist = COM[axis] - atom.coords[axis]
+                if abs(dist) < _maxDist:
+                    continue    
+                newPosition = atom.coords[axis] + np.sign(dist)*boundaries[axis]
+                atom.updatePosition(newPosition, axis)
+
 
 class SphereReader(Reader):
     def __init__(self, inputFile) -> None:
@@ -56,21 +91,17 @@ class SphereReader(Reader):
 
 
 class SnapshotBuilder:
-    snapshot = ''
     def addHeader(self) -> None:
-        self.snapshot += "Graphics3D[{"
+        return "Graphics3D[{"
 
     def addMolecule(self, molecule: SphereContainer) -> None:
-        self.snapshot += molecule.__repr__()
-
+        return molecule.__repr__()
+        
     def addSeparator(self, separator=',') -> None:
-        self.snapshot += separator
+        return separator
 
     def addClosingBrackets(self) -> None:
-        self.snapshot += "}]"
-
-    def build(self) -> str:
-        return self.snapshot
+        return "}]"
 
 
 class LineParser:
@@ -84,28 +115,30 @@ class LineParser:
 
 
 class LAMMPSParser:
-    def parseFile(self, fileLocation: str):
-        self.setup(fileLocation)
-        self.process()
+    def parseFile(self, sourceLocation: str, targetLocation: str):
+        self.setup(sourceLocation, targetLocation)
+        self.printSnapshot()
         self.finalize()
 
-    def setup(self, fileLocation: str) -> None:
-        self.reader = SphereReader(fileLocation)
+    def setup(self, sourceLocation: str, targetLocation: str) -> None:
+        self.simBox = self.getSimulationBox(sourceLocation)
+        self.reader = SphereReader(sourceLocation)
         self.reader.open()
+        self.printer = Writer(targetLocation)
+        self.printer.open()
         components = self.reader.readAtomElements()
         self.line = LineParser(components)
         self.container = SphereContainer()
         self.builder = SnapshotBuilder()
 
-    def process(self) -> None:
-        self.builder.addHeader()
+    def printSnapshot(self) -> None:
+        self.printer.write(self.builder.addHeader())
 
         while not self.container.isFull():
             self.readAddSphere()
-
-        self.builder.addMolecule(self.container)
+        self.container.wrapToBox(self.simBox.get_all_side_lengths())
+        self.printer.write(self.builder.addMolecule(self.container))
         self.container.clear()
-        i = 0
         while True:
             try:
                 self.readAddSphere()
@@ -114,35 +147,34 @@ class LAMMPSParser:
             
             if not self.container.isFull():
                 continue
-            i += 1
-            print("Molecule: ", i)
-            self.builder.addSeparator()
-            self.builder.addMolecule(self.container)
+            self.container.wrapToBox(self.simBox.get_all_side_lengths())
+            self.printer.write(self.builder.addSeparator())
+            self.printer.write(self.builder.addMolecule(self.container))
             self.container.clear()
 
-        self.builder.addClosingBrackets()
+        self.printer.write(self.builder.addClosingBrackets())
 
     def finalize(self) -> None:
         self.reader.close()
+        self.printer.close()
+
+    def getSimulationBox(self, sourceLocation):
+        reader = LAMMPSReader(ProcessingParameters(INPUT_FILE = sourceLocation, NP=1))
+        reader.open(0)
+        boundaries = reader.read_boundaries()
+        reader.close()
+        return SimulationBox(boundaries)
 
     def readAddSphere(self) -> Sphere:
         atom = self.reader.get_line_split()
         coords = self.line.getAtomCoords(atom)
         self.container.addSphere(Sphere(coords, 0.5))
 
-    def printSnapshot(self, targetLocation: str):
-        printer = Writer(targetLocation)
-        printer.open()
-        snapshot = self.builder.build()
-        printer.write(snapshot)
-        printer.close()
-
 
 
 if __name__ == '__main__':
-    fileLocation = 'C:/Users/Szymek/Desktop/middle_snapshot_4000000.lammpstrj'
+    sourceLocation = 'C:/Users/Szymek/Desktop/middle_snapshot_4000000.lammpstrj'
     targetLocation = 'C:/Users/Szymek/Desktop/parsed_LAMMPS.txt'
 
     parser = LAMMPSParser()
-    parser.parseFile(fileLocation)        
-    parser.printSnapshot(targetLocation)
+    parser.parseFile(sourceLocation, targetLocation)        

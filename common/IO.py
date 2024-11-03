@@ -74,13 +74,13 @@ class MmapReader(Reader):
         self.map = None
 
     def open(self):
-        self.f = self.file.open()
-        self.map = mmap(self.f.fileno(), length=self.file.get_file_size())
+        self.pointer = self.file.open()
+        self.map = mmap(self.pointer.fileno(), length=self.file.get_file_size())
 
     def close(self):
         try:
             self.map.close()
-            self.f.close()
+            self.pointer.close()
         except:
             raise FileNotFoundError("File is already closed.")
         
@@ -96,8 +96,8 @@ class LAMMPSReader(MmapReader):
         self.chunk = ChunkData(proc_params)
 
     def open(self, batch_ID):
-        f = self.file.open()
-        self.map = mmap(f.fileno(), length=self.chunk.get_chunk_size(), offset=self.chunk.get_offset(batch_ID))
+        self.pointer = self.file.open()
+        self.map = mmap(self.pointer.fileno(), length=self.chunk.get_chunk_size(), offset=self.chunk.get_offset(batch_ID))
 
     def read_boundaries(self) -> list:      
         self.find_line(self.is_box_header)
