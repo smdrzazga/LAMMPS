@@ -114,7 +114,7 @@ class LineParser:
         return [line[self.component_map[key]] for key in ('xu', 'yu', 'zu')]
 
 
-class LAMMPSParser:
+class LAMMPSToRampackParser:
     def parseFile(self, sourceLocation: str, targetLocation: str):
         self.setup(sourceLocation, targetLocation)
         self.printSnapshot()
@@ -170,11 +170,28 @@ class LAMMPSParser:
         coords = self.line.getAtomCoords(atom)
         self.container.addSphere(Sphere(coords, 0.5))
 
+    def printSimulationBox(self, sourceLocation, targetBoxLocation) -> None:
+        simBox = self.getSimulationBox(sourceLocation)
+        x, y, z = simBox.get_all_side_lengths()
+        
+        printer = Writer(targetBoxLocation)
+        printer.open()
+        printer.write("4", end='\n')
+        printer.write("cycles LAMMPS", end='\n')
+        printer.write("step.rototranslation.rotation 0.0", end='\n')
+        printer.write("step.rototranslation.translation 0.0", end='\n')
+        printer.write("step.scaling.scaling 0.0", end='\n')
+        printer.write(str(x) + " 0.0 0.0 0.0 " + str(y) + " 0.0 0.0 0.0 " + str(z))        
+        printer.close()
+        
+
 
 
 if __name__ == '__main__':
     sourceLocation = 'C:/Users/Szymek/Desktop/middle_snapshot_4000000.lammpstrj'
-    targetLocation = 'C:/Users/Szymek/Desktop/parsed_LAMMPS.txt'
+    targetLocation = 'C:/Users/Szymek/Desktop/11_11p0.nb'
+    boxLocation    = 'C:/Users/Szymek/Desktop/11_11p0.ramsnap'
 
-    parser = LAMMPSParser()
+    parser = LAMMPSToRampackParser()
     parser.parseFile(sourceLocation, targetLocation)        
+    parser.printSimulationBox(sourceLocation, boxLocation)
