@@ -11,18 +11,32 @@ import time
 # locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
 # locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
-locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
+# locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
+locations = [
+    "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
+]
 
 
 NP = 11
 # input data and side of simulation box
 BATCH_START = 1
 BATCH_STOP = 130
-DIRECTOR_PERIODS = 2
+DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
-AT_WALL = False
-plane = "xz"
+AT_WALL = True
+plane = "yz"
 x = 150
 z = 150
 
@@ -115,7 +129,7 @@ def main():
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_bulk_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_" + ("wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
 
         t1 = time.time()
         with Pool(NP) as executor:

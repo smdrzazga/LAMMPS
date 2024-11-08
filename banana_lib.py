@@ -427,12 +427,9 @@ class Screen:
         data = str()
         for i in range(self.y):
             for j in range(self.x):
-                pos = f"{z} {i/self.y} {j/self.x} " # z,y,x coords of pixel, 
-                n = f"{len(self.screen[i][j].components)} "
-                colour = f"{self.screen[i][j].colour()} "
-                pix = pos + n + colour + '\n'
-
-                data = data + pix
+                pos = f"{i} {j} " 
+                colour = f"{self.screen[i][j].colour()}\n"
+                data += pos + colour
 
         return data
 
