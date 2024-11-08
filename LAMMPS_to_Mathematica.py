@@ -3,6 +3,7 @@ from common.IO import LAMMPSReader
 from common.CONTAINERS import SimulationBox
 from config import ProcessingParameters
 import numpy as np
+import os
 
 class Sphere:
     def __init__(self, coords, radius) -> None:
@@ -188,9 +189,10 @@ class LAMMPSToRampackParser:
 
 
 if __name__ == '__main__':
-    sourceLocation = 'C:/Users/Szymek/Desktop/middle_snapshot_4000000.lammpstrj'
-    targetLocation = 'C:/Users/Szymek/Desktop/11_11p0.nb'
-    boxLocation    = 'C:/Users/Szymek/Desktop/11_11p0.ramsnap'
+    username = os.getlogin()
+    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_4000000.lammpstrj'
+    targetLocation = 'C:/Users/' + username + '/Desktop/11_11p0.nb'
+    boxLocation    = 'C:/Users/' + username + '/Desktop/11_11p0.ramsnap'
 
     parser = LAMMPSToRampackParser()
     parser.parseFile(sourceLocation, targetLocation)        
