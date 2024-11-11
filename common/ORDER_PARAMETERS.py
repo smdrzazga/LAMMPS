@@ -31,7 +31,7 @@ class NTBPhase:
 
 
 class SmecticParameter():
-    def __init__(self, periods: int) -> None:
+    def __init__(self, periods: int = 1) -> None:
         self.parameter = 0 + 0j
         self.count = 0
         self.periods = periods
@@ -39,19 +39,14 @@ class SmecticParameter():
     def __repr__(self) -> str:
        return f"{np.abs(self.parameter):.3f} | {self.count}"
 
-    # only for vertical slices in y-z plane!
-    def add_atom(self, center_coords: list, box: SimulationBox) -> None:
-        self.parameter += np.exp(self.periods * 2*np.pi*1j * center_coords[-1] / box.z)
-        self.count += 1
+    def calculate_smectic_param(self, screen: np.array) -> float:
+        y_max, x_max = screen.shape
+        for x in range(x_max):
+            for y in range(y_max):
+                self.parameter += np.exp(self.periods * 2*np.pi*1j * y / y_max) * screen[y, x]
+                self.count += screen[y, x]
 
-    def normalize(self) -> None:
         if self.count != 0:
-            self.parameter /= self.count
+            return np.absolute(self.parameter) / self.count
+        return 0.0    
     
-    def read_screen(self, screen: Screen, start: int, end: int) -> None:
-        HARD_CODED_LIMIT = 0
-
-        for x in range(start, end):
-            for y in range(HARD_CODED_LIMIT, screen.y):
-                self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
-                self.count += screen.screen[y][x].colour()
