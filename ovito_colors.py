@@ -4,34 +4,25 @@ from matplotlib import cm
 from matplotlib.colors import hsv_to_rgb
 
 
-# def palette(director, colors, N):
-#     cast = director[0] + 1.j*director[1]
-#     angle = (np.angle(cast) / 2 / np.pi) + 0.5       # angle ranging from 0 to 1 in full angle units
+def palette(director, polarization):
+    director_proj = director[[0,1]]
+    polarization_proj = polarization[[0,1]]
+    value = np.cross(director_proj, polarization_proj)
 
-#     i = int(N * angle) - 1
-#     [R, G, B] = colors[i, :]
-
-#     return R, G, B
-
-def palette(vector, colors, N):
-    p = 0.0
-    number = (vector[1] - p) / (1 - p)
-
-    i = int(N * number) -1
-    [R, G, B] = colors[i, :]
+    R, G, B = 0, 0, 0
+    if value > 0:
+        R = value
+    else:
+        G = abs(value)
 
     return R, G, B
 
 
-location = r"C:\Users\Szymek\Desktop\praca magisterska\dane\middle_snapshot_15000000.lammpstrj"
-target = r"C:\Users\Szymek\Desktop\praca magisterska\dane\coloured_snapshot_15000000.lammpstrj"
+location = r"G:\lammps dane\two_domains\all_snapshots_1.01.lammpstrj"
+target = r"G:\lammps dane\two_domains\coloured_domains_1.01.lammpstrj"
 
-axis = 'x'
+
 num_bananas = 528000
-
-N = 255
-hsv = np.dstack((np.linspace(0, 1, N), np.ones(N), np.ones(N)))
-colors = hsv_to_rgb(hsv.reshape((N, 3)))
 
 i = 0
 d = {'x': 0, 'y':1, 'z':2}
@@ -58,10 +49,11 @@ with open(location, "r") as f:
 
                 # if molecule is fully read then
                 if atom.id % 11 == 0:
-                    director = molecule.polarization()
+                    director = molecule.director()
+                    polarization = molecule.polarization()
                     for element in molecule.comp:
-                        R, G, B = palette(director, colors, N)
-                        print(f"{element.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
+                        R, G, B = palette(director, polarization)
+                        print(f"{element.id} {molecule.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
 
             # if i > 1e7:
             #     break

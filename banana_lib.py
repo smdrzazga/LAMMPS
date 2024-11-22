@@ -246,7 +246,11 @@ class Molecule:
 
 
     def polarization(self) -> None:
-        return self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
+        polarization = self.comp[self.atoms//2].position - (self.comp[-1].position + self.comp[0].position) / 2
+        if np.linalg.norm(polarization) > 0.0001:
+            return polarization / np.linalg.norm(polarization)
+        else:
+            raise ValueError(f"Cannot normalize polarization! Current value: {polarization}")
 
 
     def shift(self, x: float, y: float, z: float) -> None:
@@ -257,6 +261,11 @@ class Molecule:
             self.comp[i].position[1] -= mid.y - y
             self.comp[i].position[2] -= mid.z - z
 
+    def translate(self, x: float, y: float, z: float) -> None:
+        for i in range(self.atoms):     
+            self.comp[i].position[0] -= x
+            self.comp[i].position[1] -= y
+            self.comp[i].position[2] -= z
 
     def rotate_x(self, theta: float) -> None:
         # change degrees to radians

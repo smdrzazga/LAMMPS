@@ -7,36 +7,33 @@ import mmap
 import time
 
 
-# locations = ["G:/lammps dane/4z_local/4z_190/all_snapshots_0.3.lammpstrj"]
-# locations = ["C:/Users/Szymek/Desktop/middle_snapshot_5000000.lammpstrj"]
-# locations = ["C:/Users/Szymek/Desktop/praca magisterska/kod/nematyk/all_snapshots_0.32.lammpstrj"]
-# locations = ["C:/Users/Szymek/Desktop/all_snapshots_0.3.lammpstrj"]
-# locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
-locations = [
-    "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
-]
+locations = ["G:/lammps dane/two_domains/all_snapshots_1.01.lammpstrj"]
+
+# locations = [
+#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
+# ]
 
 
 NP = 11
 # input data and side of simulation box
-BATCH_START = 1
-BATCH_STOP = 130
+BATCH_START = 20
+BATCH_STOP = 30
 DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
-AT_WALL = True
-plane = "yz"
+AT_WALL = False
+plane = "xz"
 x = 150
 z = 150
 
@@ -77,6 +74,7 @@ def analyze_batch(n, location, N_ATOMS):
             # if molecule is fully read then
             if len(molecule.comp) == molecule.atoms:
                 # translate molecule center back to simulation box 
+                molecule.translate(box.min.x, box.min.y, box.min.z)
                 center = sz.Atom(atom.id, *molecule.center_of_mass())
                 center = sz.wrap_atom_to_box(center, box)
                 
@@ -88,7 +86,7 @@ def analyze_batch(n, location, N_ATOMS):
                     C_right += molecule.polarization()[1] * np.exp(2j*DIRECTOR_PERIODS*np.pi * center.position[2] / box.z)
 
                 # reject if center is not close to the wall, else add to screenshot
-                if not AT_WALL or (AT_WALL and center.position[0] < 5):
+                if not AT_WALL or (AT_WALL and center.position[0] > 65):
                     screenshot.assign(center, *screenshot.determine_pixel(center, box, plane))    
 
 
@@ -98,13 +96,6 @@ def analyze_batch(n, location, N_ATOMS):
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
                 pix_to_scroll_both = screenshot.pixels_to_scroll(z, box, flow)
                 # screenshot.scroll(pix_to_scroll_both, side="both")
-                
-                # flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
-                # flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
-                # pix_to_scroll_left = screenshot.pixels_to_scroll(z, box, flow_left)
-                # pix_to_scroll_right = screenshot.pixels_to_scroll(z, box, flow_right)
-                # screenshot.scroll(pix_to_scroll_left, side="l")
-                # screenshot.scroll(pix_to_scroll_right, side="r")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshot)
@@ -130,6 +121,7 @@ def main():
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
         screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_" + ("wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
+        # screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_bulk_two_domains_1.01.txt"
 
         t1 = time.time()
         with Pool(NP) as executor:

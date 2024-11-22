@@ -7,28 +7,29 @@ import mmap
 import time
 
 
-locations = [
-    # "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-    # "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-    "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
-]
-# locations = ["G:/lammps dane/double_z/all_snapshots_p0.92.lammpstrj"]
+locations = ["G:/lammps dane/two_domains/all_snapshots_1.01.lammpstrj"]
+
+# locations = [
+#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
+#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
+# ]
 
 
 NP = 11
 # input data and side of simulation box
-BATCH_START = 1
-BATCH_STOP = 130
-DIRECTOR_PERIODS = 2
+BATCH_START = 20
+BATCH_STOP = 30
+DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 1000
 
 AT_WALL = False
@@ -87,7 +88,7 @@ def analyze_batch(n, location, N_ATOMS):
                 # reject if center is not close to the wall, else add to screenshot
                 if not AT_WALL or (AT_WALL and center.position[0] < 5):
                     # assign director to the bin corresponding to the position of middle atom of the molecule
-                    director = sz.Atom(molecule.id, *molecule.polarization())
+                    director = sz.Atom(molecule.id, *molecule.director())
                     pixel_position = screen.determine_pixel(center, box, plane)
     
                     screenshotDirector.assign(director, *pixel_position)
