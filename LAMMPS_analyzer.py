@@ -1,4 +1,4 @@
-from common.PROCESSING import *
+from common.ANALYZERS import *
 from common.TIMERS import *
 from common.IO import *
 from config import GlobalParameters

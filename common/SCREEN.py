@@ -278,5 +278,28 @@ class AtomBinner:
         return pixel_coords
 
 
+class CentersMatrix:
+    def __init__(self, size: tuple[int, int] = (150, 150)) -> None:
+        self.size = size
 
+    def read_matrix_from_file(self, file) -> None:
+        with open(file, 'r') as f:
+            data = np.array([line.split()[-1] for line in f], dtype=np.float16)
+        self.matrix = data.reshape(self.size)
+
+    def get_slice(self, x_lim: tuple = (None, None), y_lim: tuple = (None, None)) -> np.array:
+        return self.matrix[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
+
+
+class DirectorsMatrix:
+    def __init__(self, size: tuple[int, int] = (150, 150)) -> None:
+        self.size = (*size, 3) 
+
+    def read_matrix_from_file(self, file) -> None:
+        with open(file, 'r') as f:
+            data = np.array([line.split()[-3:] for line in f], dtype=np.float32)
+        self.matrix = data.reshape(self.size)
+
+    def get_slice(self, x_lim: tuple = (None, None), y_lim: tuple = (None, None)) -> np.array:
+        return self.matrix[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
 
