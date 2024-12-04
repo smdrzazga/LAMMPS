@@ -1,11 +1,14 @@
-from common.IO import Writer, Reader
+from common.IO import Writer
 from common.IO import LAMMPSReader
 from common.CONTAINERS import SimulationBox
+from common.WRAPPERS import *
 from config import ProcessingParameters
 import numpy as np
 import os
 
-class Sphere:
+
+
+class Sphere(Element):
     def __init__(self, coords, radius) -> None:
         if len(coords) != 3:
             raise ValueError("Coords dimension is different than 3!")
@@ -15,93 +18,25 @@ class Sphere:
     def __repr__(self) -> str:
         point = ', '.join(str(coord) for coord in self.coords)
         return f"Sphere[{{{point}}},{self.radius}]"
-    
-    def updatePositionAll(self, newPositions: list[float, float, float]):
-        self.coords = newPositions
 
-    def updatePosition(self, newPosition: float, axis):
-        self.coords[axis] = newPosition
-    
 
-class SphereContainer:
-    arrSpheres = []
-
-    def __init__(self, nMax:int = 11) -> None:
-        self.max = nMax
-
+class SphereContainer(Container):
     def __repr__(self) -> str:
-        molecule = ','.join(sphere.__repr__() for sphere in self.arrSpheres).join(bracket for bracket in ['{','}'])
+        molecule = ','.join(sphere.__repr__() for sphere in self.arrElems).join(bracket for bracket in ['{','}'])
         return molecule 
 
-    def getAllElements(self):
-        return self.arrSpheres
 
-    def addSphere(self, sphere: Sphere):
-        self.arrSpheres.append(sphere)
-
-    def clear(self):
-        self.arrSpheres = []
-
-    def isFull(self):
-        return len(self.arrSpheres) == self.max
-
-    def wrapToBox(self, boundaries: list[float, float, float]) -> None:
-        atomCoords = self._getAtomCoords()
-        comCoords = self._getCOMwrapped(boundaries)
-        for i, atom in enumerate(self.arrSpheres):
-            x = atomCoords[i] % boundaries
-            atom.updatePositionAll(atomCoords[i] % boundaries)
-        self._glueTornMolecule(comCoords, boundaries)
-    
-    def _getAtomCoords(self) -> list[list]:
-        return np.array([sphere.coords for sphere in self.arrSpheres], dtype = np.float32)
-    
-    def _getCOMwrapped(self, boundaries: list[float, float, float]) -> list[float, float, float]:
-        comCoords = np.average(self._getAtomCoords(), axis=0).flatten()
-        return comCoords % boundaries
-    
-    def _glueTornMolecule(self, COM: list[float, float, float], boundaries: list[float, float, float]) -> None:
-        _maxDist = self.max * 2*self.arrSpheres[0].radius
-        for atom in self.arrSpheres:
-            for axis in range(3):
-                dist = COM[axis] - atom.coords[axis]
-                if abs(dist) < _maxDist:
-                    continue    
-                newPosition = atom.coords[axis] + np.sign(dist)*boundaries[axis]
-                atom.updatePosition(newPosition, axis)
-
-
-class SphereReader(Reader):
-    def __init__(self, inputFile) -> None:
-        super().__init__(inputFile)
-
-    def readAtomElements(self):
-        atom_elements = self.findLine(self.isAtomElementsHeader)
-        return atom_elements[2:]
-
-    def findLine(self, critera_func):
-        line_split = self.get_line_split()
-        while not critera_func(line_split):
-            line_split = self.get_line_split()
-        return line_split
-
-    def isAtomElementsHeader(self, line_split):
-        if len(line_split) < 5:
-            return False
-        return line_split[1] == 'ATOMS'
-
-
-class SnapshotBuilder:
+class SnapshotBuilder(Builder):
     def addHeader(self) -> None:
         return "Graphics3D[{"
 
-    def addMolecule(self, molecule: SphereContainer) -> None:
+    def addMolecule(self, molecule: Container) -> None:
         return molecule.__repr__()
         
-    def addSeparator(self, separator=',') -> None:
-        return separator
+    def addSeparator(self) -> None:
+        return ','
 
-    def addClosingBrackets(self) -> None:
+    def addClosingSymbols(self) -> None:
         return "}]"
 
 
@@ -123,7 +58,7 @@ class LAMMPSToRampackParser:
 
     def setup(self, sourceLocation: str, targetLocation: str) -> None:
         self.simBox = self.getSimulationBox(sourceLocation)
-        self.reader = SphereReader(sourceLocation)
+        self.reader = ElementReader(sourceLocation)
         self.reader.open()
         self.printer = Writer(targetLocation)
         self.printer.open()
@@ -149,11 +84,11 @@ class LAMMPSToRampackParser:
             if not self.container.isFull():
                 continue
             self.container.wrapToBox(self.simBox.get_all_side_lengths())
-            self.printer.write(self.builder.addSeparator())
+            self.printer.write(self.builder.addSeparator(','))
             self.printer.write(self.builder.addMolecule(self.container))
             self.container.clear()
 
-        self.printer.write(self.builder.addClosingBrackets())
+        self.printer.write(self.builder.addClosingSymbols())
 
     def finalize(self) -> None:
         self.reader.close()
@@ -169,7 +104,7 @@ class LAMMPSToRampackParser:
     def readAddSphere(self) -> Sphere:
         atom = self.reader.get_line_split()
         coords = self.line.getAtomCoords(atom)
-        self.container.addSphere(Sphere(coords, 0.5))
+        self.container.addElem(Sphere(coords, 0.5))
 
     def printSimulationBox(self, sourceLocation, targetBoxLocation) -> None:
         simBox = self.getSimulationBox(sourceLocation)

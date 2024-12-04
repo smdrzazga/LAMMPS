@@ -142,7 +142,7 @@ class ParameterAnalyzer:
         self.correlation_dir = self.matrices_dir + "\\correlation_lengths"
         self.ellipsis_dir    = self.matrices_dir + "\\ellipsis_semiaxes"
 
-    def get_all_files_in_dir_to_analyze(self, dir, filename_prefix) -> list[str]:
+    def get_all_files_in_dir_to_analyze(self, dir: str, filename_prefix: str) -> list[str]:
         files_to_analyze = glob.glob(dir + '\\' + filename_prefix)
         return files_to_analyze
   
@@ -162,24 +162,28 @@ class SmecticAnalyzer(ParameterAnalyzer):
         self.N = N_PIX
         self.set_source_paths()
 
-    def print_smectic_params_for_all_files(self) -> None:
-        files_to_analyze = self.get_all_files_in_dir_to_analyze()
+
+    def print_smectic_params_for_all_files(self, centers_file_prefix: str) -> None:
+        files_to_analyze = self.get_all_files_in_dir_to_analyze(self.centers_dir, centers_file_prefix)
 
         for file in files_to_analyze:
-            matrix = self.read_centers_data(file)
+            self.print_smectic_params_for_single_file(file)
 
-            parameters = self.calculate_smectic_params_from_matrix(matrix)
-            results = self.prepare_results_to_print(parameters)
-            target = self.target_location(file)
-            self.print_results_to_file(results, target)
 
-    def get_all_files_in_dir_to_analyze(self) -> list[str]:
-        return super().get_all_files_in_dir_to_analyze(self.centers_dir, "centers_screen_bulk_6k*")
+    def print_smectic_params_for_single_file(self, file: str) -> None:
+        matrix = self.read_centers_data(file)
+
+        parameters = self.calculate_smectic_params_from_matrix(matrix)
+        results = self.prepare_results_to_print(parameters)
+        target = self.target_location(file)
+        self.print_results_to_file(results, target)
+
 
     def read_centers_data(self, file) -> DirectorsMatrix:
         matrix = CentersMatrix((self.N, self.N))
         matrix.read_matrix_from_file(file)
         return matrix
+
 
     def calculate_smectic_params_from_matrix(self, matrix: CentersMatrix) -> list[float]:
         screen_width = matrix.size[-1]
@@ -192,34 +196,40 @@ class SmecticAnalyzer(ParameterAnalyzer):
             parameters.append(parameter)
         return parameters
 
+
     def calculate_smectic_param_for_slice(self, slice) -> float:
         return SmecticParameter(SMECTIC_PERIODS = self.SMECTIC_PERIODS).calculate_smectic_param(slice)
         
+
     def prepare_results_to_print(self, parameters: list[float]) -> list[tuple[str, str]]:
         slice_positions = [str((i+1/2)/self.N_SLICES) for i in range(self.N_SLICES)]
         str_parameters = [str(param) for param in parameters]
         results = zip(slice_positions, str_parameters)
         return results
 
+
     def target_location(self, source_path) -> str:
-        return self.smectics_dir + "\\smectic_params_6k_" + self.get_density_from_path(source_path) + ".txt"
+        return self.smectics_dir + "\\smectic_params_" + self.get_density_from_path(source_path) + ".txt"
 
 
 class CorrelationLengthAnalyzer(ParameterAnalyzer):
     def __init__(self):
         super().__init__()
 
-    def print__correlation_params_for_all_files(self) -> None:  
-        files_to_analyze = self.get_all_files_in_dir_to_analyze()
-        for file in files_to_analyze:
-            fit_params = self.read_and_fit_data(file)
-            
-            results = self.prepare_results_to_print(fit_params)
-            target = self.target_location(file)
-            self.print_results_to_file(results, target)
 
-    def get_all_files_in_dir_to_analyze(self):
-        return super().get_all_files_in_dir_to_analyze(self.smectics_dir, "smectic_params_6k_*")
+    def print_correlation_params_for_all_files(self, smectic_file_prefix: str) -> None:  
+        files_to_analyze = self.get_all_files_in_dir_to_analyze(self.smectics_dir, smectic_file_prefix)
+        for file in files_to_analyze:
+            self.print_correlation_params_for_single_file(file)
+
+
+    def print_correlation_params_for_single_file(self, file: str) -> None:
+        fit_params = self.read_and_fit_data(file)
+        
+        results = self.prepare_results_to_print(fit_params)
+        target = self.target_location(file)
+        self.print_results_to_file(results, target)
+
 
     def read_smectic_params_data(self, file) -> np.array:
         with open(file, 'r') as f:
@@ -230,10 +240,12 @@ class CorrelationLengthAnalyzer(ParameterAnalyzer):
         else:
             raise ValueError(f"Row is expected to have 2 colums. Current number of rows: {data.shape[-1]}")
         
+        
     def read_and_fit_data(self, file) -> list[float, float, float, float]:
         data = self.read_smectic_params_data(file)
         fit_params = CorrelationLength().fit_decay(data)
         return fit_params
+
 
     def prepare_results_to_print(self, parameters: list[float]) -> list[tuple[str, str]]:
         keys = ["Amplitude:", "DeltaAmplitude:", "CorrelationLength:", "DeltaCorrelationLength:"]
@@ -241,8 +253,9 @@ class CorrelationLengthAnalyzer(ParameterAnalyzer):
         results = zip(keys, str_parameters)
         return results
 
+
     def target_location(self, source_path) -> str:
-        return self.correlation_dir + "\\correlation_params_6k_" + self.get_density_from_path(source_path) + ".txt"
+        return self.correlation_dir + "\\correlation_params_" + self.get_density_from_path(source_path) + ".txt"
 
 
 class EllipsisAnalyzer(ParameterAnalyzer):
@@ -251,20 +264,27 @@ class EllipsisAnalyzer(ParameterAnalyzer):
         self.N_SLICES = N_SLICES
         self.N = N_PIX
 
-    def print_semiaxes_for_all_files(self) -> None:
-        files_to_analyze = self.get_all_files_in_dir_to_analyze(self.directors_dir, "directors_screen_full_6k*")
+
+    def print_semiaxes_for_all_files(self, director_file_prefix: str) -> None:
+        files_to_analyze = self.get_all_files_in_dir_to_analyze(self.directors_dir, director_file_prefix)
 
         for file in files_to_analyze:
-            matrix = self.read_directors_data(file)
-            parameters = self.calculate_semiaxes_from_matrix(matrix)
-            results = self.prepare_results_to_print(parameters)
-            target = self.target_location(file)
-            self.print_results_to_file(results, target)
+            self.print_semiaxes_for_single_file(file)
+
+
+    def print_semiaxes_for_single_file(self, file: str) -> None:
+        matrix = self.read_directors_data(file)
+        parameters = self.calculate_semiaxes_from_matrix(matrix)
+        results = self.prepare_results_to_print(parameters)
+        target = self.target_location(file)
+        self.print_results_to_file(results, target)
+
 
     def read_directors_data(self, file) -> DirectorsMatrix:
         matrix = DirectorsMatrix(size=(self.N, self.N))
         matrix.read_matrix_from_file(file)
         return matrix
+
 
     def calculate_semiaxes_from_matrix(self, matrix: DirectorsMatrix) -> list[float]:
         screen_width = matrix.size[1]
@@ -277,8 +297,10 @@ class EllipsisAnalyzer(ParameterAnalyzer):
             semiaxes.append(fit_result)
         return semiaxes
 
+
     def calculate_semiaxes_for_slice(self, slice) -> float:
         return EllipsisSemiaxes().calculate_semiaxes(slice)
+
 
     def prepare_results_to_print(self, parameters: list[tuple[float, float]]) -> list[tuple[str, str, str]]:
         slice_positions = [str((i+1/2)/self.N_SLICES) for i in range(self.N_SLICES)]
@@ -287,5 +309,6 @@ class EllipsisAnalyzer(ParameterAnalyzer):
         results = zip(slice_positions, ex, ey)
         return results
 
+
     def target_location(self, source_path) -> str:
-        return self.ellipsis_dir + "\\ellipsis_semiaxes_6k_" + self.get_density_from_path(source_path) + ".txt"
+        return self.ellipsis_dir + "\\ellipsis_semiaxes_" + self.get_density_from_path(source_path) + ".txt"

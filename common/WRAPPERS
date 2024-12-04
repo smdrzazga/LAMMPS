@@ -1,0 +1,94 @@
+from common.IO import Reader
+import numpy as np
+
+
+class Element:
+    def updatePositionAll(self, newPositions: list[float, float, float]):
+        self.coords = newPositions
+
+    def updatePosition(self, newPosition: float, axis):
+        self.coords[axis] = newPosition
+
+
+class Container:
+    arrElems: list[Element] = []
+
+    def __init__(self, nMax:int = 11) -> None:
+        self.max = nMax
+
+    def __repr__(self) -> str:
+        raise NotImplementedError("Not implemented in the base class!")
+
+    def getAllElements(self):
+        return self.arrElems
+
+    def addElem(self, element: Element):
+        self.arrElems.append(element)
+
+    def clear(self):
+        self.arrElems = []
+
+    def isFull(self):
+        return len(self.arrElems) == self.max
+
+    def wrapToBox(self, boundaries: list[float, float, float]) -> None:
+        atomCoords = self._getAtomCoords()
+        comCoords = self._getCOMwrapped(boundaries)
+        for i, atom in enumerate(self.arrElems):
+            x = atomCoords[i] % boundaries
+            atom.updatePositionAll(atomCoords[i] % boundaries)
+        self._glueTornMolecule(comCoords, boundaries)
+    
+    def _getAtomCoords(self) -> list[list]:
+        return np.array([element.coords for element in self.arrElems], dtype = np.float32)
+    
+    def _getCOMwrapped(self, boundaries: list[float, float, float]) -> list[float, float, float]:
+        comCoords = np.average(self._getAtomCoords(), axis=0).flatten()
+        return comCoords % boundaries
+    
+    def _glueTornMolecule(self, COM: list[float, float, float], boundaries: list[float, float, float]) -> None:
+        _maxDist = self._maxDistToBeTorn
+        for atom in self.arrElems:
+            for axis in range(3):
+                dist = COM[axis] - atom.coords[axis]
+                if abs(dist) < _maxDist:
+                    continue    
+                newPosition = atom.coords[axis] + np.sign(dist)*boundaries[axis]
+                atom.updatePosition(newPosition, axis)
+
+    def _maxDistToBeTorn(self):
+        return self.max * 2
+
+
+class Builder:
+    def addHeader(self) -> None:
+        return ''
+
+    def addMolecule(self, molecule: Container) -> None:
+        return molecule.__repr__()
+        
+    def addSeparator(self) -> None:
+        return ''
+
+    def addClosingSymbols(self) -> None:
+        return ''
+    
+    
+class ElementReader(Reader):
+    def __init__(self, inputFile) -> None:
+        super().__init__(inputFile)
+
+    def readAtomElements(self):
+        atom_elements = self.findLine(self.isAtomElementsHeader)
+        return atom_elements[2:]
+
+    def findLine(self, critera_func):
+        line_split = self.get_line_split()
+        while not critera_func(line_split):
+            line_split = self.get_line_split()
+        return line_split
+
+    def isAtomElementsHeader(self, line_split):
+        if len(line_split) < 5:
+            return False
+        return line_split[1] == 'ATOMS'
