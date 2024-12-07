@@ -17,8 +17,8 @@ class BatchAnalyzer:
         self.reader = LAMMPSReader(self.proc_params)
         self.binner = AtomBinner(self.snap_params['SIZE'], view_plane=self.snap_params['PLANE'])
         self.phase_tracker = NTBPhase(self.snap_params['DIRECTOR_PERIODS'])
-        self.screen = None
-        self.screenshot = None
+        self.screen: Screen
+        self.screenshot: Screenshot
 
     def setup(self):
         boundaries = self.reader.read_boundaries()
@@ -28,7 +28,7 @@ class BatchAnalyzer:
         self.atom = Atom()
 
     def analyze_batch(self, ID) -> NotImplementedError:
-        raise NotImplementedError("Function 'analyze_batch' is virtual in this scope.")
+        raise NotImplementedError("Function is virtual in this scope")
     
     def read_atom(self, split_line):
         self.atom = Atom(split_line[-3:], id=split_line[0])
@@ -42,6 +42,9 @@ class BatchAnalyzer:
     def update_box(self):
         boundaries = self.reader.read_boundaries()
         self.box.update_boundaries(boundaries)
+
+    def clear_screenshots(self) -> None:
+        raise NotImplementedError("Function is virtual in this scope.")
 
 
 class DirectorFullAnalyzer(BatchAnalyzer):
