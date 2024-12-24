@@ -168,7 +168,7 @@ class SmecticAnalyzer(ParameterAnalyzer):
 
     def print_smectic_params_for_all_files(self, centers_file_prefix: str) -> None:
         files_to_analyze = self.get_all_files_in_dir_to_analyze(self.centers_dir, centers_file_prefix)
-
+        print("Files to analyze: ", files_to_analyze)
         for file in files_to_analyze:
             self.print_smectic_params_for_single_file(file)
 

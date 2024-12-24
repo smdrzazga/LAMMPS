@@ -66,7 +66,7 @@ class LAMMPSToMathematica(LAMMPSParser):
 
 if __name__ == '__main__':
     username = os.getlogin()
-    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_4000000.lammpstrj'
+    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_61000000.lammpstrj'
     targetLocation = 'C:/Users/' + username + '/Desktop/11_11p0.nb'
     boxLocation    = 'C:/Users/' + username + '/Desktop/11_11p0.ramsnap'
 
