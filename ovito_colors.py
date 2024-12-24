@@ -53,7 +53,8 @@ with open(location, "r") as f:
                     polarization = molecule.polarization()
                     for element in molecule.comp:
                         R, G, B = palette(director, polarization)
-                        print(f"{element.id} {molecule.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
+                        # print(f"{element.id} {molecule.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
+                        print(f"{element.id} {element.type} {element.position[0]} {element.position[1]} {element.position[2]} {R:.3f} {G:.3f} {B:.3f}", file=t)
 
             # if i > 1e7:
             #     break

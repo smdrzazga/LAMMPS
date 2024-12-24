@@ -5,11 +5,12 @@ import numpy as np
 molecule = sz.Molecule(1, 11)
 chi = 130
 alpha = (180 - chi)*np.pi/180
-R = 1 / (2 * np.sin(alpha / 2 / molecule.atoms))
+R = 1 / (2 * np.sin(alpha / 2 / (molecule.atoms - 1)))
 
 for i in range(molecule.atoms):
-    x = R * np.cos( (i - molecule.atoms // 2) * alpha / molecule.atoms) - R * np.sin(alpha)
-    y = R * np.sin( (i - molecule.atoms // 2) * alpha / molecule.atoms) + R * np.cos(alpha)
+    _theta = (i - molecule.atoms // 2) * alpha / (molecule.atoms - 1)
+    x = R * np.cos(_theta)
+    y = R * np.sin(_theta)
     z = 1
 
     atom = sz.Atom(i+1, x, y, z, type=1)
@@ -18,17 +19,19 @@ for i in range(molecule.atoms):
 # box needs to be inflated in order to achieve target packing fraction
 # initial size of the simulation box
 x = 120
-y = 60
-z = 50
-packingFractionEnd = 0.320
+y = 40
+z = 105
+packingFractionEnd = 0.312
 N_WALLS = 1     # REMEMBER ABOUT SETTING SCALE OF FINAL_BOX
 N_MOLS_PER_PERIOD = 4
 # IF THERE IS A PROBLEM WITH COLLAPSED MOLECULES INTO A PLANE - CHECK ATOM CONSTRUCTOR
 
 # computing final box volume from target packing fraction and volume of all molecules
-grid = sz.Vector(100, 50, 4)
+grid = sz.Vector(100, 30, 8)
 volBoxStart = x * y * z
-volAtoms =  grid.x*grid.y*grid.z * molecule.atoms * sz.Atom.volume
+WCA_volume_factor = 1.0
+# WCA_volume_factor = 1.015721
+volAtoms =  grid.x*grid.y*grid.z * molecule.atoms * sz.Atom.volume * WCA_volume_factor
 packingFractionStart = volAtoms / volBoxStart
 volBoxEnd = volAtoms / packingFractionEnd 
 scale = sz.scale( volBoxEnd, volBoxStart, N_WALLS )
@@ -36,7 +39,7 @@ final_box = sz.Vector(x, y*scale, z*scale)
 
 # variables determining lattice, on which molecules will be placed and distances between them
 offset_mult = sz.Vector((final_box.x-6)/grid.x, (final_box.y-0)/grid.y, (final_box.z-0)/grid.z)
-offset_add = sz.Vector(0.5, 1, 0)
+offset_add = sz.Vector(-8, 1, 0)
 
 # position of middle atom of molecule
 mid = molecule.atoms // 2

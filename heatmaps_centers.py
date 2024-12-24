@@ -1,13 +1,13 @@
 import numpy as np
 import banana_lib as sz
-import matplotlib.pyplot as plt
-from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.pool import Pool
 import mmap
 import time
+import os
 
 
-locations = ["G:/lammps dane/two_domains/all_snapshots_1.01.lammpstrj"]
+# locations = ["G:/lammps dane/new_chi/p0.97/all_snapshots_0.97.lammpstrj"]
+locations = ["G:/lammps dane/2z2x/nvt/d_0.32/all_snapshots_1.01.lammpstrj"]
 
 # locations = [
 #     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
@@ -27,13 +27,13 @@ locations = ["G:/lammps dane/two_domains/all_snapshots_1.01.lammpstrj"]
 
 NP = 11
 # input data and side of simulation box
-BATCH_START = 20
-BATCH_STOP = 30
-DIRECTOR_PERIODS = 1
-SIZE = mmap.ALLOCATIONGRANULARITY * 1000
+BATCH_START = 25
+BATCH_STOP = 245
+DIRECTOR_PERIODS = 2
+SIZE = mmap.ALLOCATIONGRANULARITY * 2000
 
-AT_WALL = False
-plane = "xz"
+AT_WALL = True
+plane = "yz"
 x = 150
 z = 150
 
@@ -86,7 +86,7 @@ def analyze_batch(n, location, N_ATOMS):
                     C_right += molecule.polarization()[1] * np.exp(2j*DIRECTOR_PERIODS*np.pi * center.position[2] / box.z)
 
                 # reject if center is not close to the wall, else add to screenshot
-                if not AT_WALL or (AT_WALL and center.position[0] > 65):
+                if not AT_WALL or (AT_WALL and center.position[0] < 5):
                     screenshot.assign(center, *screenshot.determine_pixel(center, box, plane))    
 
 
@@ -95,7 +95,7 @@ def analyze_batch(n, location, N_ATOMS):
                 # eliminate Goldstone's mods by shifting whole system along z axis by:  L_z * Arg(C) / 2pi
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
                 pix_to_scroll_both = screenshot.pixels_to_scroll(z, box, flow)
-                # screenshot.scroll(pix_to_scroll_both, side="both")
+                screenshot.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshot)
@@ -120,8 +120,8 @@ def main():
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_" + ("wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
-        # screen_file = "C:/Users/Szymek/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_bulk_two_domains_1.01.txt"
+        screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/centers_matrices/centers_" + ("wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
+        # screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/centers_matrices/centers_screen_bulk_two_domains_1.01.txt"
 
         t1 = time.time()
         with Pool(NP) as executor:
