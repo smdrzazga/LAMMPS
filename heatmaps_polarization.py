@@ -6,13 +6,15 @@ import time
 import os
 
 
-# locations = ["G:/lammps dane/new_chi/p0.97/all_snapshots_0.97.lammpstrj"]
+# locations = ["G:/lammps dane/new_chi/p1.05/all_snapshots_1.05.lammpstrj"]
 locations = ["G:/lammps dane/two_domains/all_snapshots_2x.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/two_domains/middle_snapshot_48500000.lammpstrj"]
+
 
 
 NP = 11
 # input data and side of simulation box
-BATCH_START = 20 
+BATCH_START = 20
 BATCH_STOP = 90
 DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 2000
@@ -24,8 +26,9 @@ z = 150
 
 
 def analyze_batch(n, location, N_ATOMS):
-    screenshot = sz.Screenshot(x, z, sz.CenterPixel)
-    screen = sz.Screen(x, z, sz.CenterPixel)
+    screen = sz.Screen(x, z, sz.PolarizationPixel)
+    screenshotDirector = sz.Screenshot(x, z, sz.PolarizationPixel)
+    screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
     molecule = sz.Molecule(1, 11)
 
     C_left = 0 + 0j
@@ -46,7 +49,7 @@ def analyze_batch(n, location, N_ATOMS):
 
             # read atoms one by one from file 
             try:
-                atom = sz.Atom( line.split()[0], [*line.split()[-3:]])
+                atom = sz.Atom( line.split()[0], [line.split()[-3:]])
             except:
                 continue
 
@@ -59,10 +62,9 @@ def analyze_batch(n, location, N_ATOMS):
             # if molecule is fully read then
             if len(molecule.comp) == molecule.atoms:
                 # translate molecule center back to simulation box 
-                # molecule.translate(box.min)
                 center = sz.Atom(atom.id, molecule.center_of_mass())
                 center = sz.wrap_atom_to_box(center, box)
-                
+        
                 # calculate C = sum_i p_y(i) exp (2 n pi z(i)/L_z)\
                 C += molecule.polarization()[1] * np.exp(2j*DIRECTOR_PERIODS*np.pi * center.position[2] / box.z)
                 if center.position[0] < box.x//2:
@@ -72,61 +74,87 @@ def analyze_batch(n, location, N_ATOMS):
 
                 # reject if center is not close to the wall, else add to screenshot
                 if not AT_WALL or (AT_WALL and center.position[0] > 115):
-                    screenshot.assign(center, *screenshot.determine_pixel(center, box, plane))    
+                    # assign director to the bin corresponding to the position of middle atom of the molecule
+                    polarization = sz.Atom(molecule.id, molecule.polarization())
+                    pixel_position = screen.determine_pixel(center, box, plane)
+    
+                    screenshotDirector.assign(polarization, *pixel_position)
+                    screenshotCenter.assign(center, *pixel_position)
 
 
             # if there is only one molecule remaining to read the full snapshot then execute following
             if atom.id == 3*box.atoms//2:
                 # eliminate Goldstone's mods by shifting whole system along z axis by:  L_z * Arg(C) / 2pi
+                # flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
+                # flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
+                # pix_to_scroll_left = screenshotCenter.pixels_to_scroll(z, box, flow_left)
+                # pix_to_scroll_right = screenshotCenter.pixels_to_scroll(z, box, flow_right)
+                # screenshotDirector.scroll(pix_to_scroll_left, side="l")
+                # screenshotDirector.scroll(pix_to_scroll_right, side="r")
+
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
-                pix_to_scroll_both = screenshot.pixels_to_scroll(z, box, flow)
-                # screenshot.scroll(pix_to_scroll_both, side="both")
+                pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
+                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
-                screen.append_screenshot(screenshot)
+                screen.append_screenshot(screenshotDirector)
 
-                # clear current screenshot, box and number C measuring flow 
+                # check whether average director aligns with z direction
+                # print(screenshotDirector.avg_director())
+                # print(screen.avg_director())
+
+                # clear current screenshot, box and flow measuring number C
                 boundaries = sz.read_boundaries(data, N_ATOMS + 10, open=False, is_mmap=True)
                 box = sz.Simulation_box(*boundaries, N_ATOMS)
-                screenshot = sz.Screenshot(x, z, sz.CenterPixel)
-                C_left = 0 + 0j
-                C_right = 0 + 0j
-                C = 0 + 0j
+                screenshotDirector = sz.Screenshot(x, z, sz.PolarizationPixel)
+                screenshotCenter = sz.Screenshot(x, z, sz.CenterPixel)
+                C, C_left, C_right = 0. + 0.j, 0. + 0.j, 0. + 0.j
 
     print(f"Task is done!: {n}")
     return screen
 
 
-def main():
+def create_polarization_matrix(screen: sz.Screen, location):
+    results = []
+    with Pool(NP) as executor:
+        args = zip([(i, j) for i in range(z) for j in range(x)],  [screen.screen[i][j] for i in range(z) for j in range(x)])
+        for result in executor.starmap(_get_polarization, args):
+            results.append(result)
+
+    with open(location, "w+") as l:
+        for line in results:
+            i, j, polarization = line
+            print(f"{i} {j} {polarization[0]} {polarization[1]} {polarization[2]}", file=l)
+                
+def _get_polarization(coords, pixel):
+    i, j = coords
+    return [i, j, pixel.local_polarization()]
+
+
+
+if __name__ == '__main__':
+
     for location in locations:
         # N_ATOMS = sz.read_number_of_atoms(location)
         N_ATOMS = 165000
         N_BATCH = BATCH_STOP - BATCH_START
-        screen = sz.Screen(x, z, sz.CenterPixel)
+        screen = sz.Screen(x, z, sz.PolarizationPixel)
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/centers_matrices/centers_" + ("second_wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
-        
+        screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/polarization_matrices/polarization_" + ("second_wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
 
         t1 = time.time()
         with Pool(NP) as executor:
             args = zip([i for i in range(BATCH_START, BATCH_STOP)], [location]*N_BATCH, [N_ATOMS]*N_BATCH)
             for result in executor.starmap(analyze_batch, args):
                 screen.append_screenshot(result)
+        # analyze_batch(1, location, N_ATOMS)
 
         print("Here comes the heatmap!")
-
-        with open(screen_file, "w+") as t:
-            print("", end='', file=t)
-
-        with open(screen_file, "a+") as t:
-            print(screen, end='', file=t)
+        create_polarization_matrix(screen, screen_file)
+        print("Finished! Yay!")
 
         t2 = time.time()
         print(f"Time elapsed: {t2 - t1}")
         print("Bye bye, heatmap!")
-
-
-if __name__ == '__main__':
-    main()

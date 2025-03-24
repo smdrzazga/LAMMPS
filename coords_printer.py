@@ -1,130 +1,183 @@
-import banana_lib as sz
+from banana_lib import *
 import numpy as np
-
-# arc-banana-shaped molecule angles and radius
-molecule = sz.Molecule(1, 11)
-chi = 130
-alpha = (180 - chi)*np.pi/180
-R = 1 / (2 * np.sin(alpha / 2 / (molecule.atoms - 1)))
-
-for i in range(molecule.atoms):
-    _theta = (i - molecule.atoms // 2) * alpha / (molecule.atoms - 1)
-    x = R * np.cos(_theta)
-    y = R * np.sin(_theta)
-    z = 1
-
-    atom = sz.Atom(i+1, x, y, z, type=1)
-    molecule.comp.append(atom)
-
-# box needs to be inflated in order to achieve target packing fraction
-# initial size of the simulation box
-x = 120
-y = 40
-z = 105
-packingFractionEnd = 0.312
-N_WALLS = 1     # REMEMBER ABOUT SETTING SCALE OF FINAL_BOX
-N_MOLS_PER_PERIOD = 4
-# IF THERE IS A PROBLEM WITH COLLAPSED MOLECULES INTO A PLANE - CHECK ATOM CONSTRUCTOR
-
-# computing final box volume from target packing fraction and volume of all molecules
-grid = sz.Vector(100, 30, 8)
-volBoxStart = x * y * z
-WCA_volume_factor = 1.0
-# WCA_volume_factor = 1.015721
-volAtoms =  grid.x*grid.y*grid.z * molecule.atoms * sz.Atom.volume * WCA_volume_factor
-packingFractionStart = volAtoms / volBoxStart
-volBoxEnd = volAtoms / packingFractionEnd 
-scale = sz.scale( volBoxEnd, volBoxStart, N_WALLS )
-final_box = sz.Vector(x, y*scale, z*scale)
-
-# variables determining lattice, on which molecules will be placed and distances between them
-offset_mult = sz.Vector((final_box.x-6)/grid.x, (final_box.y-0)/grid.y, (final_box.z-0)/grid.z)
-offset_add = sz.Vector(-8, 1, 0)
-
-# position of middle atom of molecule
-mid = molecule.atoms // 2
-position = sz.Vector( *molecule.comp[mid].position ) 
-
-# NTB
-# translating molecule to be centered at (0,0,0), then rotating and translating back to original position
-molecule.shift(0, 0, 0)
-molecule.rotate_x(70)
-molecule.shift(position.x, position.y, position.z)
-
-# heading for LAMMPS read_file function
-target = "C:/Users/Szymek/Desktop/tworzenie_atomow_z_pliku.txt"
-sz.write_heading(target, molecule.atoms * grid.x*grid.y*grid.z, final_box)
-
-# loops for printing atoms one at a time
-id = 0
-with open(target, "a") as f:
-    for k in range(grid.z):
-        # rotate whole layer of molecules by 90 deg for ever layer in z axis to get periodic structure every 45 vertical distance units
-        position = sz.Vector( *molecule.comp[mid].position ) 
-        molecule.shift(0,0,0)
-        molecule.rotate_z(360//N_MOLS_PER_PERIOD)
-        molecule.shift(position.x, position.y, position.z)
-        
-        for j in range(grid.x):
-            for i in range(grid.y):
-                for a in range(molecule.atoms):
-                    id += 1
-                    mol_id = k * grid.x * grid.y + j * grid.y + i + 1
-                    x = molecule.comp[a].position[0] + offset_mult.x * j + offset_add.x
-                    y = molecule.comp[a].position[1] + offset_mult.y * i + offset_add.y
-                    z = molecule.comp[a].position[2] + offset_mult.z * k + offset_add.z
-                    print("%d %d 1 %.5f %.2f %.5f" % (id, mol_id, x, y, z), file=f)
-
-print(f"Packing fraction end: {packingFractionEnd} \nAll done!")
+from numpy.typing import NDArray
+import os
+import copy
 
 
-# #NSB
-# # translating molecule to be centered at (0,0,0), then rotating and translating back to original position
-# SB_ANGLE = 30
-# molecule.shift(0, 0, 0)
-# molecule.rotate_x(90)
-# molecule.rotate_z(90)
-# molecule.rotate_x(-1*SB_ANGLE)
+class MoleculeParams:
+    ATOMS_IN_MOL: int = 11
+    CHI_DEG: float   = 110
+    _ALPHA_RAD: float = (180 - CHI_DEG) * np.pi / 180
+    R: float = 1 / (2 * np.sin(_ALPHA_RAD / 2 / ATOMS_IN_MOL))
 
-# molecule.shift(position.x, position.y, position.z)
 
-# # heading for LAMMPS read_file function
-# target = "C:/Users/Szymek/Desktop/tworzenie_atomow_z_pliku.txt"
-# sz.write_heading(target, molecule.atoms * grid.x*grid.y*grid.z, final_box)
+def createMolecule(startAtomId: int = 1):
+    molecule = Molecule(1, MoleculeParams.ATOMS_IN_MOL)
 
-# # loops for printing atoms one at a time
-# id = 0
-# with open(target, "a") as f:
-#     for k in range(grid.z):
-#         position = sz.Vector( *molecule.comp[mid].position ) 
-#         molecule.shift(0,0,0)
-#         if k%6 == 0 or k%6 == 1:
-#             molecule.rotate_x(SB_ANGLE)
-#         elif k%6 == 2:
-#             molecule.rotate_z(180)
-#             molecule.rotate_x(2*SB_ANGLE)
-#         elif k%6 == 3 or k%6 == 4:
-#             molecule.rotate_x(-1*SB_ANGLE)
-#         else:
-#             molecule.rotate_z(180)
-#             molecule.rotate_x(-2*SB_ANGLE)
-        
-#         if k%3 == 2:
-#             position.z -= 1.2
-#         elif k%3 != 2:
-#             position.z += 0.5
+    for i in range(MoleculeParams.ATOMS_IN_MOL):
+        _theta = (i - MoleculeParams.ATOMS_IN_MOL // 2) * MoleculeParams._ALPHA_RAD / (MoleculeParams.ATOMS_IN_MOL)
+        coords = [MoleculeParams.R * np.cos(_theta), MoleculeParams.R * np.sin(_theta), 1.0]
 
-#         # molecule.shift(position.x, position.y, position.z)
-#         molecule.shift(position.x, position.y, position.z)
-        
-#         for j in range(grid.x):
-#             for i in range(grid.y):
-#                 for a in range(molecule.atoms):
-#                     id += 1
-#                     mol_id = k * grid.x * grid.y + j * grid.y + i + 1
-#                     x = molecule.comp[a].position[0] + offset_mult.x * j + offset_add.x
-#                     y = molecule.comp[a].position[1] + offset_mult.y * i + offset_add.y
-#                     z = molecule.comp[a].position[2] + offset_mult.z * k + offset_add.z
-#                     print("%d %d 1 %.5f %.2f %.5f" % (id, mol_id, x, y, z), file=f)
+        atom = Atom(startAtomId + i, coords)
+        molecule.comp.append(atom)
 
-# print(f"Packing fraction end: {packingFractionEnd} \nAll done!")
+    return molecule
+
+
+
+class ConfigurationParameters:
+    initialBoxSize: NDArray[np.float64] = np.array([60, 60, 30], dtype=np.float64)
+    moleculeGrid: NDArray[np.int64]     = np.array([50, 50, 3], dtype=np.int64)
+    MOL_TOTAL: int                      = np.prod(moleculeGrid)
+    packingFractionEnd: float           = 0.318
+    isWCA: bool                         = False
+    N_WALLS: int                        = 0
+    N_MOLS_PER_PERIOD: int              = 3
+
+    offsetEmpty: NDArray[np.float64]    = np.array([8, 0, 0], dtype=np.float64)
+    offsetAdd: NDArray[np.float64]      = np.array([-4, 1, 0], dtype=np.float64)
+    targetFilepath: str                 = "C:/Users/" + os.getlogin() + "/Desktop/tworzenie_atomow_z_pliku.txt"
+
+
+
+class NTBConfigurationPrinter:
+    _WCAvolumeFactor = 1.015721
+    _atomVolume = Atom.volume
+    
+    def __init__(self) -> None:
+        self.volumeFactor: float = self._WCAvolumeFactor if ConfigurationParameters.isWCA else 1.0
+        self.molecule: Molecule  = createMolecule()
+        self.distances: NDArray  = (self.getFinalBoxSize() - ConfigurationParameters.offsetEmpty) / ConfigurationParameters.moleculeGrid
+
+
+    def getFinalBoxSize(self) -> NDArray:
+        _volAtoms    = ConfigurationParameters.MOL_TOTAL * self.molecule.atoms * self._atomVolume * self.volumeFactor
+        _volBoxStart = np.prod(ConfigurationParameters.initialBoxSize)
+        _volBoxEnd   = _volAtoms / ConfigurationParameters.packingFractionEnd
+
+        _scale = pow(_volBoxEnd / _volBoxStart, 1 / (3 - ConfigurationParameters.N_WALLS))
+        _scaleVector = [1.0, _scale, _scale] if ConfigurationParameters.N_WALLS == 1 else ([1.0, _scale, 1.0] if ConfigurationParameters.N_WALLS == 2 else [1.0, 1.0, 1.0])
+
+        return np.array(ConfigurationParameters.initialBoxSize, dtype=np.float64) * np.array(_scaleVector, dtype=np.float64)
+
+
+    def printLayer(self, layerID: int) -> None:
+        _moleculeCopy = self._getRotatedMolecule(layerID)
+        self._updateMoleculeProperties(_moleculeCopy)
+        self._printReplicatedMolecules(_moleculeCopy, layerID)
+
+
+    def _getRotatedMolecule(self, layerID) -> Molecule:
+        _moleculeCopy = copy.deepcopy(self.molecule)
+        position = _moleculeCopy.center_of_mass() 
+        _moleculeCopy.shift(0, 0, 0)
+        _moleculeCopy.rotate_x(70)
+        _moleculeCopy.rotate_z(layerID * 90)
+        _moleculeCopy.shift(*position)
+
+        return _moleculeCopy
+
+
+    def _updateMoleculeProperties(self, molecule: Molecule) -> None: ...
+
+
+    def _printReplicatedMolecules(self, molecule: Molecule, layerID: int) -> None:
+        id = ConfigurationParameters.moleculeGrid[0] * ConfigurationParameters.moleculeGrid[1] * molecule.atoms * layerID
+        with open(ConfigurationParameters.targetFilepath, "a") as f:
+            for i in range(ConfigurationParameters.moleculeGrid[0]):
+                for j in range(ConfigurationParameters.moleculeGrid[1]):
+                    for a in range(molecule.atoms):
+                        id += 1
+                        mol_id = (id - 1) // molecule.atoms + 1
+                        itype = 1
+                        x, y, z = molecule.comp[a].position + self.distances * np.array([i, j, layerID]) + ConfigurationParameters.offsetAdd
+                        
+                        print("%d %d %d %.5f %.2f %.5f" % (id, mol_id, itype, x, y, z), file=f)
+
+
+    def printHeader(self) -> None:
+        write_heading(ConfigurationParameters.targetFilepath, ConfigurationParameters.MOL_TOTAL * self.molecule.atoms, Vector(*self.getFinalBoxSize()))
+
+
+    def printConfiguration(self) -> None:
+        self.printHeader()
+        for i in range(ConfigurationParameters.moleculeGrid[2]):
+            self.printLayer(i)
+
+    
+
+class DipoleConfigurationPrinter(NTBConfigurationPrinter):
+
+    def _getAtomDipoles(self, molecule: Molecule) -> NDArray[np.float64]:
+        circleCenter = self._getCircleCenter(molecule)
+        mainAx = self._getMainAxis(molecule)
+        dipoleMoments = np.zeros((molecule.atoms, 3))
+
+        for i, atom in enumerate(molecule.comp):
+            radiusVect = (circleCenter - atom.position) / np.linalg.norm(circleCenter - atom.position)
+            perpendicularAx = np.cross(mainAx, radiusVect) / np.linalg.norm(np.cross(mainAx, radiusVect))
+            dipoleMoments[i] = np.cross(radiusVect, perpendicularAx)
+
+        return dipoleMoments
+
+
+    def _getCircleCenter(self, molecule: Molecule) -> NDArray[np.float64]:
+        atomIndices = [1, molecule.atoms//2, -1]          # assuming N odd for simplicity
+        startAtom, middleAtom, lastAtom = [molecule.comp[i].position for i in atomIndices]
+
+        polarizationAx = (lastAtom + startAtom) / 2 - middleAtom
+        polarizationAx /= np.linalg.norm(polarizationAx)
+
+        return middleAtom + MoleculeParams.R * polarizationAx
+
+
+    def _getMainAxis(self, molecule: Molecule) -> NDArray[np.float64]:
+        atomIndices = [1, -1]
+        startAtom, lastAtom = [molecule.comp[i].position for i in atomIndices]
+        mainAx = lastAtom - startAtom
+        mainAx /= np.linalg.norm(mainAx)
+
+        return mainAx
+    
+
+    def _updateMoleculeProperties(self, molecule: Molecule) -> None:
+        dipoles = self._getAtomDipoles(molecule)
+        for i in range(molecule.atoms):
+            molecule.comp[i].mu = dipoles[i]
+            
+
+    def _printReplicatedMolecules(self, molecule: Molecule, layerID: int) -> None:
+        id = ConfigurationParameters.moleculeGrid[0] * ConfigurationParameters.moleculeGrid[1] * molecule.atoms * layerID
+        with open(ConfigurationParameters.targetFilepath, "a") as f:
+            for i in range(ConfigurationParameters.moleculeGrid[0]):
+                for j in range(ConfigurationParameters.moleculeGrid[1]):
+                    for a in range(molecule.atoms):
+                        id += 1
+                        mol_id = (id - 1) // molecule.atoms + 1
+                        itype = 1
+                        q = 0.0
+                        diam = 1.0
+                        rho = 1.0
+                        x, y, z = molecule.comp[a].position + self.distances * np.array([i, j, layerID]) + ConfigurationParameters.offsetAdd
+                        mux, muy, muz = molecule.comp[a].mu
+                        #id type x y z mol q  mux muy muz  r  rho 
+                        print(f"{id} {itype} {x:.5f} {y:.5f} {z:.5f} {mol_id} {q:.3f} {mux:.5f} {muy:.5f} {muz:.5f} {diam:.3f} {rho:.3f}", file=f)
+
+
+
+if __name__ == "__main__":
+    # DipoleConfigurationPrinter().printConfiguration()
+    NTBConfigurationPrinter().printConfiguration()
+
+    # molecule = createMolecule()
+    # # molecule.rotate_z(180)
+    # molecule.rotate_x(90)
+    # molecule.rotate_y(-90)
+    # molecule.rotate_x(-90)
+    # molecule.shift(0, 0, 0)
+    # for atom in molecule.comp:
+    #     pos = atom.position
+    #     pos = ", ".join([str(i) for i in pos]).join(["(", ")"])
+    #     print(pos, end=",\n")
+

@@ -7,29 +7,16 @@ import os
 
 
 # locations = ["G:/lammps dane/new_chi/p1.05/all_snapshots_1.05.lammpstrj"]
-locations = ["G:/lammps dane/2z2x/nvt/d_0.31/all_snapshots_2z2x_0.31.lammpstrj"]
+locations = ["G:/lammps dane/two_domains/all_snapshots_2x.lammpstrj"]
+# locations = ["C:/Users/Szymek/Desktop/ref_snap.lammpstrj"]
 
-# locations = [
-#     "G:/lammps dane/6k/all_snapshots_0.32.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.318.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.316.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.315.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.314.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.312.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.31.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.308.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.3.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.29.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.28.lammpstrj",
-#     "G:/lammps dane/6k/all_snapshots_0.305.lammpstrj"
-# ]
 
 
 NP = 11
 # input data and side of simulation box
-BATCH_START = 5
-BATCH_STOP = 70
-DIRECTOR_PERIODS = 2
+BATCH_START = 20
+BATCH_STOP = 90
+DIRECTOR_PERIODS = 1
 SIZE = mmap.ALLOCATIONGRANULARITY * 2000
 
 AT_WALL = False
@@ -62,7 +49,7 @@ def analyze_batch(n, location, N_ATOMS):
 
             # read atoms one by one from file 
             try:
-                atom = sz.Atom( line.split()[0], *line.split()[-3:])
+                atom = sz.Atom( line.split()[0], [line.split()[-3:]])
             except:
                 continue
 
@@ -75,7 +62,7 @@ def analyze_batch(n, location, N_ATOMS):
             # if molecule is fully read then
             if len(molecule.comp) == molecule.atoms:
                 # translate molecule center back to simulation box 
-                center = sz.Atom(atom.id, *molecule.center_of_mass())
+                center = sz.Atom(atom.id, molecule.center_of_mass())
                 center = sz.wrap_atom_to_box(center, box)
         
                 # calculate C = sum_i p_y(i) exp (2 n pi z(i)/L_z)\
@@ -86,9 +73,9 @@ def analyze_batch(n, location, N_ATOMS):
                     C_right += molecule.polarization()[1] * np.exp(2j*DIRECTOR_PERIODS*np.pi * center.position[2] / box.z)
 
                 # reject if center is not close to the wall, else add to screenshot
-                if not AT_WALL or (AT_WALL and center.position[0] < 5):
+                if not AT_WALL or (AT_WALL and center.position[0] > 115):
                     # assign director to the bin corresponding to the position of middle atom of the molecule
-                    director = sz.Atom(molecule.id, *molecule.director())
+                    director = sz.Atom(molecule.id, molecule.director())
                     pixel_position = screen.determine_pixel(center, box, plane)
     
                     screenshotDirector.assign(director, *pixel_position)
@@ -96,7 +83,7 @@ def analyze_batch(n, location, N_ATOMS):
 
 
             # if there is only one molecule remaining to read the full snapshot then execute following
-            if atom.id == box.atoms:
+            if atom.id == 3*box.atoms//2:
                 # eliminate Goldstone's mods by shifting whole system along z axis by:  L_z * Arg(C) / 2pi
                 # flow_left = box.z / DIRECTOR_PERIODS * np.angle(C_left) / (2*np.pi)
                 # flow_right = box.z / DIRECTOR_PERIODS * np.angle(C_right) / (2*np.pi)
@@ -107,7 +94,7 @@ def analyze_batch(n, location, N_ATOMS):
 
                 flow = box.z / DIRECTOR_PERIODS * np.angle(C) / (2*np.pi)
                 pix_to_scroll_both = screenshotCenter.pixels_to_scroll(z, box, flow)
-                screenshotDirector.scroll(pix_to_scroll_both, side="both")
+                # screenshotDirector.scroll(pix_to_scroll_both, side="both")
 
                 # add corrected screenshot to the final image
                 screen.append_screenshot(screenshotDirector)
@@ -127,31 +114,6 @@ def analyze_batch(n, location, N_ATOMS):
     return screen
 
 
-
-def create_scatter(screen: sz.Screen, location: str, start: int = 4, end: int = 9, new_file: bool = True) -> None:
-    # common choices are 150x150 pix screen size
-    # pixels 4:9 for wall and 73:78 for bulk  
-    
-    # initialize
-    slices = [sz.HorizontalSlice(screen, row) for row in range(0, z)]
-    slice_directors = np.zeros((z, 3))
-
-
-    for i, slice in enumerate(slices):
-        slice.read_slice(screen, start, end)
-        slice_directors[i] = slice.component.local_director()
-
-    # create empty file / clear existing values
-    if new_file:
-        with open(location, "w+") as l:
-            print('', end='', file=l)
-
-    with open(location, "a+") as l:
-        # print(slice, end='', file=l)
-        for i in range(z):
-            print(f"{i} {slice_directors[i, 0]} {slice_directors[i, 1]} {slice_directors[i, 2]}", file=l)
-
-
 def create_director_matrix(screen: sz.Screen, location):
     results = []
     with Pool(NP) as executor:
@@ -169,16 +131,18 @@ def _get_director(coords, pixel):
     return [i, j, pixel.local_director()]
 
 
+
 if __name__ == '__main__':
 
     for location in locations:
-        N_ATOMS = sz.read_number_of_atoms(location)
+        # N_ATOMS = sz.read_number_of_atoms(location)
+        N_ATOMS = 165000
         N_BATCH = BATCH_STOP - BATCH_START
         screen = sz.Screen(x, z, sz.DirectorPixel)
 
         density = location.split('_')[-1].split('.')[0] + '.' + location.split('_')[-1].split('.')[1]
         mode = location.split('/')[-2]
-        screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/directors_matrices/polarization_screen_full_" + mode + '_' + density + ".txt"
+        screen_file = "C:/Users/" + os.getlogin() + "/Desktop/LAMMPS_matrices/directors_matrices/directors_" + ("second_wall" if AT_WALL else "bulk") + "_" + mode + '_' + density + ".txt"
 
         t1 = time.time()
         with Pool(NP) as executor:

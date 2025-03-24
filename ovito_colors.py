@@ -18,8 +18,10 @@ def palette(director, polarization):
     return R, G, B
 
 
-location = r"G:\lammps dane\two_domains\all_snapshots_1.01.lammpstrj"
-target = r"G:\lammps dane\two_domains\coloured_domains_1.01.lammpstrj"
+# location = r"G:\lammps dane\two_domains\all_snapshots_1.01.lammpstrj"
+# target = r"G:\lammps dane\two_domains\coloured_domains_1.01.lammpstrj"
+location = r"C:\Users\Szymek\Desktop\middle_snapshot_22500000.lammpstrj"
+target = r"C:\Users\Szymek\Desktop\coloured_domains_1.01.lammpstrj"
 
 
 num_bananas = 528000
@@ -33,7 +35,7 @@ with open(location, "r") as f:
 
             try:
                 l = line.split()
-                atom = sz.Atom(l[0], *l[-3:], type=l[1])
+                atom = sz.Atom(l[0], l[-3:], type=l[1])
             except:
                 if "id" in line: print(f"{line[:-1]} R G B", file=t)
                 else: print(line, end='', file=t)

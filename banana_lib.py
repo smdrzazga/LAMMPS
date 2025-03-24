@@ -1,5 +1,6 @@
 from math import sqrt
 import numpy as np
+from numpy.typing import NDArray
 import functools
 from scipy.sparse.linalg import eigsh
 import scipy.sparse.linalg
@@ -184,10 +185,25 @@ def scale(target_volume: float, current_volume: float, num_walls: int) -> float:
 
 
 class Atom:
-    def __init__(self, id: int, x: float, y: float, z: float, type="A") -> None:
+    def __init__(self, 
+                 id: int, 
+                 coords: NDArray[np.float64], 
+                 type: int = 1, 
+                 molID: int = -1, 
+                 q: float = 0.0,
+                 mu: NDArray[np.float64] = np.zeros((3)), 
+                 diam: float = 1.0, 
+                 rho: float = 1.0) -> None:
         self.id = int(id)
-        self.type = type
-        self.position = np.array([float(x), float(y), float(z)])
+        self.position = np.array(coords, dtype=np.float64).flatten()
+        if len(self.position) != 3: 
+            raise ValueError(f"Incorrect number of atom coords! Expected 3 coords, actual coords: {self.position}")
+        self.type = int(type)
+        self.molID = int(molID)
+        self.q = float(q)
+        self.mu = np.array(mu, dtype=np.float64)
+        self.diam = float(diam)
+        self.rho = float(rho)
 
     def __repr__(self) -> str:
         return f"{self.id} | {self.type} | {self.position}"
@@ -225,9 +241,9 @@ class Simulation_box:
 
 class Molecule:
     def __init__(self, id: int, num_atoms: int) -> None:
-        self.id = id   
-        self.comp = []
-        self.atoms = num_atoms
+        self.id: int          = id   
+        self.comp: list[Atom] = []
+        self.atoms: int       = num_atoms
 
     def center(self) -> Atom:
         return self.comp[self.atoms//2]
@@ -238,10 +254,13 @@ class Molecule:
             raise Exception("Error: molecule not fully read." )
 
         com = np.zeros(3)
-
-        for i in range(self.atoms):
-            com += self.comp[i].position
             
+        for i in range(self.atoms):
+            try:
+                com += self.comp[i].position
+            except:
+                print("COM: ", com, '\nAtom: ', self.comp[i]) 
+
         return com / self.atoms
 
 
@@ -261,11 +280,12 @@ class Molecule:
             self.comp[i].position[1] -= mid.y - y
             self.comp[i].position[2] -= mid.z - z
 
-    def translate(self, x: float, y: float, z: float) -> None:
+    def translate(self, delta: Vector) -> None:
         for i in range(self.atoms):     
-            self.comp[i].position[0] -= x
-            self.comp[i].position[1] -= y
-            self.comp[i].position[2] -= z
+            print(self.comp[i].position)
+            self.comp[i].position[0] -= delta.x
+            self.comp[i].position[1] -= delta.y
+            self.comp[i].position[2] -= delta.z
 
     def rotate_x(self, theta: float) -> None:
         # change degrees to radians
@@ -349,6 +369,9 @@ class Pixel:
     def __init__(self) -> None:
         self.components = []
 
+    def __repr__(self):
+        return self.colour()
+
     def assign(self, atom: Atom) -> None:
         self.components.append(atom.position)
 
@@ -378,6 +401,9 @@ class CenterPixel(Pixel):
 class DirectorPixel(Pixel):
     def __init__(self) -> None:
         super().__init__()
+
+    def __repr__(self) -> str:
+        return f"{len(self.components)} | {self.local_director()}"
 
     def Q(self) -> list[list]:
         Q = np.zeros((3,3))
@@ -420,9 +446,46 @@ class DirectorPixel(Pixel):
         return p2value
     
     def colour(self) -> str:
-        # return self.P2Value()
-        return self.local_director()[1]
-        # return f"{self.local_director()[0]} {self.local_director()[1]} {self.local_director()[2]}"
+        director = self.local_director()
+        return director[1]
+        # return f"{director[0]} {director[1]} {director[2]}"
+
+
+class PolarizationPixel(Pixel):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __repr__(self) -> str:
+        return f"{len(self.components)} | {self.local_polarization()}"
+
+    def Q(self) -> list[list]:
+        Q = np.zeros((3,3))
+        
+        for director in self.components:
+            Q += 0.5 * (3*np.tensordot(director, director, axes=0) - np.identity(3))
+        
+        if len(self.components) > 0:
+            Q /= len(self.components)
+
+        return Q
+
+    def local_polarization(self) -> list:
+        polarization  = np.zeros(3)
+        
+        for elem in self.components:
+            polarization += elem
+
+        if len(self.components) > 0:
+            polarization /= len(self.components)
+
+        return polarization
+
+    
+    def colour(self) -> str:
+        polarization = self.local_polarization()
+        return polarization[1]
+        # return f"{polarization[0]} {polarization[1]} {polarization[2]}"
+
     
 
 class Screen:
@@ -627,17 +690,12 @@ class SmecticParameter():
     
     def read_screen(self, screen: Screen, start: int, end: int) -> None:
         HARD_CODED_LIMIT = 0
-        # HARD_CODED_LIMIT = int((self.periods % 1.0) * screen.y / self.periods)
-        # print(HARD_CODED_LIMIT, screen.y)
 
         for x in range(start, end):
-        # for x in range(start, start+1):
             for y in range(HARD_CODED_LIMIT, screen.y):
-                # for coords in screen.screen[y][x].components:
-                #     self.add_atom(coords, box)
                 self.parameter += np.exp(self.periods * 2*np.pi*1j * y / screen.y) * screen.screen[y][x].colour()
                 self.count += screen.screen[y][x].colour()
-                # print(self)
+
 
 def read_matrix(file: str, n_slices: float, n_periods: int) -> list:
     list_of_params = np.zeros(n_slices, dtype=np.complex128)
