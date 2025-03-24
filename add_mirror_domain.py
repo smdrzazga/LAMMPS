@@ -8,7 +8,7 @@ class MirrorBuilder(BananaBuilder):
     def __init__(self, sourceLocation):
         super().__init__(sourceLocation)
         self.numAtoms = 2*int(self.numAtoms)
-        self.box.max[0] = 2.2*self.box.max[0]
+        self.box.max[0] = 2.0*self.box.max[0]
 
     def addHeader(self) -> None:
         header = f"""\
@@ -37,8 +37,8 @@ Atoms
 
 
 class MirrorCreator(LAMMPSParser):
-    mirrorParams = [63, 'x']
-    moveParams = [7, 'z']
+    mirrorParams = [120, 'x']
+    moveParams = [0, 'z']
 
     def __init__(self, sourceLocation: str) -> None:
         self.elementClass = BananaAtom  
@@ -93,7 +93,7 @@ class MirrorCreator(LAMMPSParser):
 
 if __name__ == '__main__':
     username = os.getlogin()
-    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_11000000.lammpstrj'
+    sourceLocation = 'C:/Users/' + username + '/Desktop/sandbox/middle_snapshot_0.lammpstrj'
     targetLocation = 'C:/Users/' + username + '/Desktop/mirror_tworzenie_atomow_z_pliku.txt'
 
     mirrorCreator = MirrorCreator(sourceLocation)

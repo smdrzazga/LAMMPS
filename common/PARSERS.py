@@ -203,12 +203,22 @@ class LAMMPSOutputSystemPropertiesScanner:
     def __init__(self, sourceLocation):
         self.sourceLocation = sourceLocation
 
+    # def getTotalNumAtoms(self) -> str:
+    #     with open(self.sourceLocation, 'r') as f:
+    #         file = f.readlines()
+    #     lastLine = file[-1]
+    #     numAtoms = lastLine.strip().split()[0]
+    #     return numAtoms
+
     def getTotalNumAtoms(self) -> str:
         with open(self.sourceLocation, 'r') as f:
-            file = f.readlines()
-        lastLine = file[-1]
-        numAtoms = lastLine.strip().split()[0]
-        return numAtoms
+            for line in f:
+                if "ITEM: NUMBER " in line: 
+                    numAtoms = f.readline()
+                    return int(numAtoms)
+
+        raise EOFError("The total number of atoms not found in the file!")
+
 
     def getSimulationBox(self) -> SimulationBox:
         reader = LAMMPSReader(ProcessingParameters(INPUT_FILE = self.sourceLocation, NP=1))

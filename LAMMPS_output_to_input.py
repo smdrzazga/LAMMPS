@@ -22,7 +22,7 @@ class LAMMPSoutputToInput(LAMMPSParser):
 
 if __name__ == '__main__':
     username = os.getlogin()
-    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_11000000.lammpstrj'
+    sourceLocation = 'C:/Users/' + username + '/Desktop/middle_snapshot_8500000.lammpstrj'
     targetLocation = 'C:/Users/' + username + '/Desktop/test_LAMMPS_output_to_input.txt'
 
     parser = LAMMPSoutputToInput(sourceLocation)
