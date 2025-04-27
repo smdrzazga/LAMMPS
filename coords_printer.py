@@ -27,13 +27,13 @@ def createMolecule(startAtomId: int = 1):
 
 
 class ConfigurationParameters:
-    initialBoxSize: NDArray[np.float64] = np.array([60, 60, 30], dtype=np.float64)
-    moleculeGrid: NDArray[np.int64]     = np.array([50, 50, 3], dtype=np.int64)
+    initialBoxSize: NDArray[np.float64] = np.array([60, 60, 40], dtype=np.float64)
+    moleculeGrid: NDArray[np.int64]     = np.array([50, 50, 4], dtype=np.int64)
     MOL_TOTAL: int                      = np.prod(moleculeGrid)
     packingFractionEnd: float           = 0.318
     isWCA: bool                         = False
     N_WALLS: int                        = 0
-    N_MOLS_PER_PERIOD: int              = 3
+    N_MOLS_PER_PERIOD: int              = 4
 
     offsetEmpty: NDArray[np.float64]    = np.array([8, 0, 0], dtype=np.float64)
     offsetAdd: NDArray[np.float64]      = np.array([-4, 1, 0], dtype=np.float64)
